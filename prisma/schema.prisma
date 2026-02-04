@@ -1,0 +1,72 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // url is provided via prisma.config.ts
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String?
+  password  String
+  role      String    @default("user") // "admin" or "user"
+  createdAt DateTime  @default(now())
+
+  // relations
+  hostedSessions GameSession[]  @relation("HostSessions")
+  players        Player[]
+  createdPasses  Passcode[]      @relation("CreatorPasscodes")
+}
+
+model GameSession {
+  id         Int       @id @default(autoincrement())
+  code       String?   @unique
+  title      String?
+  createdAt  DateTime  @default(now())
+
+  hostUserId Int?
+  hostUser   User?     @relation("HostSessions", fields: [hostUserId], references: [id])
+
+  players    Player[]
+  moves      Move[]
+  passcodes  Passcode[]
+}
+
+model Player {
+  id        Int         @id @default(autoincrement())
+  name      String
+  userId    Int?        // optional link to a User row
+  sessionId Int
+  joinedAt  DateTime    @default(now())
+
+  session   GameSession @relation(fields: [sessionId], references: [id])
+  user      User?       @relation(fields: [userId], references: [id])
+}
+
+model Passcode {
+  id         Int       @id @default(autoincrement())
+  code       String    @unique
+  sessionId  Int?      
+  createdBy  Int?      
+  expiresAt  DateTime
+  used       Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  session    GameSession? @relation(fields: [sessionId], references: [id])
+  creator    User?        @relation("CreatorPasscodes", fields: [createdBy], references: [id])
+}
+
+model Move {
+  id         Int       @id @default(autoincrement())
+  sessionId  Int
+  playerName String
+  type       String    // "flip", "match", etc
+  payload    Json?
+  createdAt  DateTime  @default(now())
+
+  session    GameSession @relation(fields: [sessionId], references: [id])
+}
