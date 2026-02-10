@@ -2,7 +2,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "./prisma"; // keep relative import if file lives next to prisma.ts
+import { getPrisma } from "@/lib/prisma";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -109,7 +109,7 @@ export async function requireAdmin(req: NextRequest) {
   if (!Number.isInteger(userId) || userId <= 0) {
     return null;
   }
-
+  const prisma = await getPrisma();
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.role !== "admin") return null;
   return user;

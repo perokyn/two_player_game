@@ -19,7 +19,8 @@ export default function UserLogin() {
     });
     const j = await res.json();
     if (res.ok) {
-      router.push("/"); // or a /play page
+      // redirect to game
+      router.push("/game");
     } else {
       setMsg(j.error || "Invalid code");
     }

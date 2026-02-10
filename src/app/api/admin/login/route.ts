@@ -1,10 +1,12 @@
 // src/app/api/admin/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+
 import { verifyPassword, signJwt, setCookie } from "@/lib/auth";
+import { getPrisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
+    const prisma = await getPrisma();
     const { email, password } = await req.json();
     if (!email || !password)
       return NextResponse.json(

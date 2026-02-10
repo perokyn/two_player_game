@@ -1,10 +1,11 @@
 // src/app/api/admin/signup/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { hashPassword, signJwt, setCookie } from "@/lib/auth";
+import { getPrisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
+    const prisma = await getPrisma();
     const { email, password, name } = await req.json();
     if (!email || !password)
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });

@@ -2,10 +2,55 @@
 "use client";
 import { useState } from "react";
 
+import { useRouter } from "next/navigation";
+
+function JoinCurrentGameButton() {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const router = useRouter();
+
+  async function handleJoin() {
+    try {
+      setErr(null);
+      setLoading(true);
+      const res = await fetch("/api/admin/join-current-session", {
+        method: "POST",
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setErr(j?.error ?? "Failed to join session");
+        return;
+      }
+      // The endpoint sets cg_user_session cookie — now navigate to /game
+      router.push("/game");
+    } catch (e) {
+      setErr(String((e as Error)?.message ?? "Unknown error"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <button onClick={handleJoin} disabled={loading}>
+        {loading ? "Joining..." : "Join current game"}
+      </button>
+      {err && <div style={{ color: "crimson", marginTop: 8 }}>{err}</div>}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const [sessionId, setSessionId] = useState("");
-  const [passcode, setPasscode] = useState("");
+  const [passcode, setPasscode] = useState<PasscodeResponse | null>(null);
   const [message, setMessage] = useState("");
+
+  type PasscodeResponse = {
+    id: number;
+    code: string;
+    sessionId: number;
+    expiresAt: string;
+  };
 
   async function createPass(e: React.FormEvent) {
     e.preventDefault();
@@ -47,9 +92,12 @@ export default function AdminDashboard() {
       {message && <p>{message}</p>}
       {passcode && (
         <p>
-          Passcode: <code>{passcode}</code>
+          Passcode: <code style={{ fontSize: "1.2em" }}>{passcode.code}</code>
         </p>
       )}
+      <div>
+        <JoinCurrentGameButton />
+      </div>
     </main>
   );
 }
