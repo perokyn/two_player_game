@@ -70,3 +70,18 @@ model Move {
 
   session    GameSession @relation(fields: [sessionId], references: [id])
 }
+
+model QuestionSet {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now())
+  questions Question[]
+}
+
+model Question {
+  id          Int         @id @default(autoincrement())
+  questionSet QuestionSet @relation(fields: [questionSetId], references: [id], onDelete: Cascade)
+  questionSetId Int
+  text        String
+  order       Int
+}
