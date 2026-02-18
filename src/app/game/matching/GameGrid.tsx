@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import GameCard from "@/components/GameCard";
 import { createSeededRandom } from "@/lib/seededRandom";
+import Pusher, { Channel } from "pusher-js";
 type QuestionShape = {
   id: number;
   text: string;
@@ -33,9 +34,21 @@ export default function GameGrid({
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
   const [matched, setMatched] = useState<Set<number>>(new Set());
   const [cards, setCards] = useState<CardItem[]>([]);
+  const [remoteFlipped, setRemoteFlipped] = useState<Set<string>>(new Set());
 
   // Track the last processed questions ID to prevent redundant/cascading updates
   const lastProcessedQuestionsRef = React.useRef<string>("");
+
+  // Pusher refs for listening to other players' flips
+  const pusherRef = React.useRef<Pusher | null>(null);
+  const channelRef = React.useRef<Channel | null>(null);
+  const remoteFlipsTimersRef = React.useRef<Map<string, NodeJS.Timeout>>(
+    new Map(),
+  );
+
+  // Environment reads (bundled at build time)
+  const key = process.env.NEXT_PUBLIC_PUSHER_KEY ?? "";
+  const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER ?? "";
 
   // Helper function (unchanged logic)
   const createShuffledCards = (qs: QuestionShape[]): CardItem[] => {
@@ -75,6 +88,83 @@ export default function GameGrid({
 
     return () => clearTimeout(timeoutId);
   }, [questions, sessionId, createShuffledCards]);
+
+  // Listen to other players' card flips via Pusher
+  useEffect(() => {
+    if (!sessionId || !key || !cluster) return;
+
+    const pusher = new Pusher(key, {
+      cluster,
+      authEndpoint: "/api/pusher/auth",
+      forceTLS: true,
+    });
+    pusherRef.current = pusher;
+
+    const channelName = `presence-game-${sessionId}`;
+    const channel = pusher.subscribe(channelName);
+    channelRef.current = channel;
+
+    const onRemoteFlip = (data: unknown) => {
+      try {
+        const payload = data as { who?: string; card?: string } | string;
+        let who = "";
+        let card = "";
+
+        if (typeof payload === "object" && payload !== null) {
+          const obj = payload as Record<string, unknown>;
+          who = typeof obj.who === "string" ? obj.who : "";
+          card = typeof obj.card === "string" ? obj.card : "";
+        }
+
+        // Only add if it's from another player
+        if (who && who !== playerName && card) {
+          setRemoteFlipped((prev) => new Set(prev).add(card));
+
+          // Clear existing timer if any
+          const existingTimer = remoteFlipsTimersRef.current.get(card);
+          if (existingTimer) clearTimeout(existingTimer);
+
+          // Set new timer to remove after 500ms (so it matches the local flip timing)
+          const timer = setTimeout(() => {
+            setRemoteFlipped((prev) => {
+              const next = new Set(prev);
+              next.delete(card);
+              return next;
+            });
+            remoteFlipsTimersRef.current.delete(card);
+          }, 500);
+
+          remoteFlipsTimersRef.current.set(card, timer);
+        }
+      } catch (err) {
+        console.warn("GameGrid: error processing card-flip", err);
+      }
+    };
+
+    channel.bind("card-flip", onRemoteFlip);
+
+    // Capture current timers map for cleanup
+    const timersMapRef = remoteFlipsTimersRef.current;
+
+    return () => {
+      try {
+        if (channelRef.current) {
+          channel.unbind("card-flip", onRemoteFlip);
+          pusher.unsubscribe(channelName);
+        }
+        pusher.disconnect();
+
+        // Clear all timers
+        timersMapRef.forEach((timer) => clearTimeout(timer));
+        timersMapRef.clear();
+      } catch (e) {
+        console.warn("GameGrid cleanup error", e);
+      } finally {
+        pusherRef.current = null;
+        channelRef.current = null;
+      }
+    };
+  }, [sessionId, playerName, key, cluster]);
 
   // --- REST OF THE CODE (handleCardFlip and Match Logic) ---
   // Note: I have kept your existing handleCardFlip logic exactly as is.
@@ -193,7 +283,7 @@ export default function GameGrid({
             <GameCard
               id={card.id}
               text={card.text}
-              isFlipped={flipped.has(card.id)}
+              isFlipped={flipped.has(card.id) || remoteFlipped.has(card.id)}
               onClick={() => handleCardFlip(card.id)}
               disabled={matched.has(card.questionId) || gameWon}
             />
