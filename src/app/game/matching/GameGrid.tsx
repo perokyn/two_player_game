@@ -1,7 +1,7 @@
 // src/app/game/matching/GameGrid.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import GameCard from "@/components/GameCard";
 import { createSeededRandom } from "@/lib/seededRandom";
 import Pusher, { Channel } from "pusher-js";
@@ -42,32 +42,10 @@ export default function GameGrid({
   // Pusher refs for listening to other players' flips
   const pusherRef = React.useRef<Pusher | null>(null);
   const channelRef = React.useRef<Channel | null>(null);
-  const remoteFlipsTimersRef = React.useRef<Map<string, NodeJS.Timeout>>(
-    new Map(),
-  );
 
   // Environment reads (bundled at build time)
   const key = process.env.NEXT_PUBLIC_PUSHER_KEY ?? "";
   const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER ?? "";
-
-  // Helper function (unchanged logic)
-  const createShuffledCards = (qs: QuestionShape[]): CardItem[] => {
-    const newCards: CardItem[] = [];
-    qs.forEach((q) => {
-      newCards.push(
-        { id: `q${q.id}-0`, questionId: q.id, text: q.text, pairIndex: 0 },
-        { id: `q${q.id}-1`, questionId: q.id, text: q.text, pairIndex: 1 },
-      );
-    });
-
-    const rng = createSeededRandom(sessionId);
-
-    for (let i = newCards.length - 1; i > 0; i--) {
-      const j = Math.floor(rng.next() * (i + 1));
-      [newCards[i], newCards[j]] = [newCards[j], newCards[i]];
-    }
-    return newCards;
-  };
 
   useEffect(() => {
     if (!questions || questions.length === 0 || !sessionId) return;
@@ -75,6 +53,25 @@ export default function GameGrid({
     const questionsKey = JSON.stringify(questions.map((q) => q.id));
 
     if (lastProcessedQuestionsRef.current === questionsKey) return;
+
+    // Helper function (moved inside useEffect)
+    const createShuffledCards = (qs: QuestionShape[]): CardItem[] => {
+      const newCards: CardItem[] = [];
+      qs.forEach((q) => {
+        newCards.push(
+          { id: `q${q.id}-0`, questionId: q.id, text: q.text, pairIndex: 0 },
+          { id: `q${q.id}-1`, questionId: q.id, text: q.text, pairIndex: 1 },
+        );
+      });
+
+      const rng = createSeededRandom(sessionId);
+
+      for (let i = newCards.length - 1; i > 0; i--) {
+        const j = Math.floor(rng.next() * (i + 1));
+        [newCards[i], newCards[j]] = [newCards[j], newCards[i]];
+      }
+      return newCards;
+    };
 
     const timeoutId = setTimeout(() => {
       const newCards = createShuffledCards(questions);
@@ -87,7 +84,7 @@ export default function GameGrid({
     }, 0);
 
     return () => clearTimeout(timeoutId);
-  }, [questions, sessionId, createShuffledCards]);
+  }, [questions, sessionId]);
 
   // Listen to other players' card flips via Pusher
   useEffect(() => {
@@ -119,44 +116,74 @@ export default function GameGrid({
         // Only add if it's from another player
         if (who && who !== playerName && card) {
           setRemoteFlipped((prev) => new Set(prev).add(card));
-
-          // Clear existing timer if any
-          const existingTimer = remoteFlipsTimersRef.current.get(card);
-          if (existingTimer) clearTimeout(existingTimer);
-
-          // Set new timer to remove after 500ms (so it matches the local flip timing)
-          const timer = setTimeout(() => {
-            setRemoteFlipped((prev) => {
-              const next = new Set(prev);
-              next.delete(card);
-              return next;
-            });
-            remoteFlipsTimersRef.current.delete(card);
-          }, 500);
-
-          remoteFlipsTimersRef.current.set(card, timer);
         }
       } catch (err) {
         console.warn("GameGrid: error processing card-flip", err);
       }
     };
 
-    channel.bind("card-flip", onRemoteFlip);
+    const onRemoteUnflip = (data: unknown) => {
+      try {
+        const payload = data as { who?: string; cards?: string[] } | string;
+        let who = "";
+        let cards_to_remove: string[] = [];
 
-    // Capture current timers map for cleanup
-    const timersMapRef = remoteFlipsTimersRef.current;
+        if (typeof payload === "object" && payload !== null) {
+          const obj = payload as Record<string, unknown>;
+          who = typeof obj.who === "string" ? obj.who : "";
+          if (Array.isArray(obj.cards)) {
+            cards_to_remove = obj.cards.filter(
+              (c): c is string => typeof c === "string",
+            );
+          }
+        }
+
+        if (who && who !== playerName && cards_to_remove.length > 0) {
+          setRemoteFlipped((prev) => {
+            const next = new Set(prev);
+            cards_to_remove.forEach((card) => next.delete(card));
+            return next;
+          });
+        }
+      } catch (err) {
+        console.warn("GameGrid: error processing card-unflip", err);
+      }
+    };
+
+    const onRemoteMatch = (data: unknown) => {
+      try {
+        const payload = data as { who?: string; questionId?: number } | string;
+        let who = "";
+        let questionId: number | undefined;
+
+        if (typeof payload === "object" && payload !== null) {
+          const obj = payload as Record<string, unknown>;
+          who = typeof obj.who === "string" ? obj.who : "";
+          questionId =
+            typeof obj.questionId === "number" ? obj.questionId : undefined;
+        }
+
+        if (who && who !== playerName && questionId !== undefined) {
+          setMatched((prev) => new Set(prev).add(questionId));
+        }
+      } catch (err) {
+        console.warn("GameGrid: error processing card-match", err);
+      }
+    };
+
+    channel.bind("card-flip", onRemoteFlip);
+    channel.bind("card-unflip", onRemoteUnflip);
+    channel.bind("card-match", onRemoteMatch);
 
     return () => {
       try {
         if (channelRef.current) {
           channel.unbind("card-flip", onRemoteFlip);
+          channel.unbind("card-unflip", onRemoteUnflip);
+          channel.unbind("card-match", onRemoteMatch);
           pusher.unsubscribe(channelName);
         }
         pusher.disconnect();
-
-        // Clear all timers
-        timersMapRef.forEach((timer) => clearTimeout(timer));
-        timersMapRef.clear();
       } catch (e) {
         console.warn("GameGrid cleanup error", e);
       } finally {
@@ -226,15 +253,60 @@ export default function GameGrid({
 
     const timer = setTimeout(() => {
       if (card1.questionId === card2.questionId) {
+        // Match found
         setMatched((prev) => new Set(prev).add(card1.questionId));
         setFlipped(new Set());
+
+        // Broadcast match event to other players
+        try {
+          const ch = `presence-game-${sessionId}`;
+          const payload = {
+            channel: ch,
+            event: "card-match",
+            data: {
+              who: playerName ?? "unknown",
+              questionId: card1.questionId,
+              ts: new Date().toISOString(),
+            },
+          };
+
+          fetch("/api/pusher/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).catch(() => console.error("Failed to broadcast match"));
+        } catch (err) {
+          console.error("Error broadcasting match:", err);
+        }
       } else {
+        // No match - flip cards back and broadcast unflip event
         setFlipped(new Set());
+
+        try {
+          const ch = `presence-game-${sessionId}`;
+          const payload = {
+            channel: ch,
+            event: "card-unflip",
+            data: {
+              who: playerName ?? "unknown",
+              cards: [card1.id, card2.id],
+              ts: new Date().toISOString(),
+            },
+          };
+
+          fetch("/api/pusher/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).catch(() => console.error("Failed to broadcast unflip"));
+        } catch (err) {
+          console.error("Error broadcasting unflip:", err);
+        }
       }
-    }, 500);
+    }, 1000);
 
     return () => clearTimeout(timer);
-  }, [flipped, cards]);
+  }, [flipped, cards, sessionId, playerName]);
 
   // ... (Remaining JSX/Grid logic remains identical to your original)
 
