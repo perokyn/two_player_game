@@ -5,6 +5,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import GameCard from "@/components/GameCard";
 import { createSeededRandom } from "@/lib/seededRandom";
 import Pusher, { Channel } from "pusher-js";
+type PresenceMember = {
+  info?: { name?: string; username?: string };
+  id?: string;
+};
 type QuestionShape = {
   id: number;
   text: string;
@@ -35,6 +39,8 @@ export default function GameGrid({
   const [matched, setMatched] = useState<Set<number>>(new Set());
   const [cards, setCards] = useState<CardItem[]>([]);
   const [remoteFlipped, setRemoteFlipped] = useState<Set<string>>(new Set());
+  const [activePlayer, setActivePlayer] = useState<string | null>(null);
+  const [isResolving, setIsResolving] = useState<boolean>(false);
 
   // Track the last processed questions ID to prevent redundant/cascading updates
   const lastProcessedQuestionsRef = React.useRef<string>("");
@@ -175,12 +181,101 @@ export default function GameGrid({
     channel.bind("card-unflip", onRemoteUnflip);
     channel.bind("card-match", onRemoteMatch);
 
+    // When subscription completes, pick a random starting player and announce
+    const onSub = () => {
+      try {
+        const membersArr: string[] = [];
+        const m = (
+          channel as unknown as {
+            members?: { each?: (fn: (mem: PresenceMember) => void) => void };
+          }
+        ).members;
+        if (m && typeof m.each === "function") {
+          m.each((mem: PresenceMember) => {
+            const name = mem.info?.name ?? mem.info?.username ?? mem.id;
+            if (typeof name === "string") membersArr.push(name);
+          });
+        }
+
+        if (membersArr.length === 0) return;
+
+        // choose random starter
+        const chosen =
+          membersArr[Math.floor(Math.random() * membersArr.length)];
+        // announce turn-start (best-effort; any client may announce)
+        const payload = {
+          channel: `presence-game-${sessionId}`,
+          event: "turn-start",
+          data: { who: chosen, ts: new Date().toISOString() },
+        };
+        fetch("/api/pusher/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
+      } catch {
+        // ignore
+      }
+    };
+
+    channel.bind(
+      "pusher:subscription_succeeded",
+      onSub as unknown as (...args: unknown[]) => void,
+    );
+
+    const onTurnStart = (data: unknown) => {
+      try {
+        const payload = data as { who?: string } | string;
+        let who = "";
+        if (typeof payload === "object" && payload !== null) {
+          const obj = payload as Record<string, unknown>;
+          who = typeof obj.who === "string" ? obj.who : "";
+        }
+        if (who) setActivePlayer(who);
+      } catch {}
+    };
+
+    const onTurnPass = (data: unknown) => {
+      try {
+        const payload = data as { who?: string } | string;
+        let who = "";
+        if (typeof payload === "object" && payload !== null) {
+          const obj = payload as Record<string, unknown>;
+          who = typeof obj.who === "string" ? obj.who : "";
+        }
+        if (who) setActivePlayer(who);
+      } catch {}
+    };
+
+    const onTurnKeep = (data: unknown) => {
+      try {
+        const payload = data as { who?: string } | string;
+        let who = "";
+        if (typeof payload === "object" && payload !== null) {
+          const obj = payload as Record<string, unknown>;
+          who = typeof obj.who === "string" ? obj.who : "";
+        }
+        if (who) setActivePlayer(who);
+      } catch {}
+    };
+
+    channel.bind("turn-start", onTurnStart);
+    channel.bind("turn-pass", onTurnPass);
+    channel.bind("turn-keep", onTurnKeep);
+
     return () => {
       try {
         if (channelRef.current) {
           channel.unbind("card-flip", onRemoteFlip);
           channel.unbind("card-unflip", onRemoteUnflip);
           channel.unbind("card-match", onRemoteMatch);
+          channel.unbind(
+            "pusher:subscription_succeeded",
+            onSub as unknown as (...args: unknown[]) => void,
+          );
+          channel.unbind("turn-start", onTurnStart);
+          channel.unbind("turn-pass", onTurnPass);
+          channel.unbind("turn-keep", onTurnKeep);
           pusher.unsubscribe(channelName);
         }
         pusher.disconnect();
@@ -198,6 +293,7 @@ export default function GameGrid({
 
   const handleCardFlip = useCallback(
     async (cardId: string) => {
+      // basic guards
       if (
         matched.has(parseInt(cardId.split("q")[1])) ||
         isLoading ||
@@ -206,13 +302,14 @@ export default function GameGrid({
         return;
       }
 
+      // enforce turn-taking and resolving lock
+      if (!activePlayer || activePlayer !== (playerName ?? null)) return;
+      if (isResolving) return;
+
       setFlipped((prev) => {
         const next = new Set(prev);
-        if (next.has(cardId)) {
-          next.delete(cardId);
-        } else {
-          next.add(cardId);
-        }
+        if (next.has(cardId)) next.delete(cardId);
+        else next.add(cardId);
         return next;
       });
 
@@ -239,7 +336,7 @@ export default function GameGrid({
         console.error("Error broadcasting card flip:", err);
       }
     },
-    [sessionId, playerName, matched, isLoading],
+    [sessionId, playerName, matched, isLoading, activePlayer, isResolving],
   );
 
   useEffect(() => {
@@ -250,62 +347,133 @@ export default function GameGrid({
     const card2 = cards.find((c) => c.id === flippedArray[1]);
 
     if (!card1 || !card2) return;
+    // lock flips while resolving
+    setIsResolving(true);
 
     const timer = setTimeout(() => {
-      if (card1.questionId === card2.questionId) {
-        // Match found
-        setMatched((prev) => new Set(prev).add(card1.questionId));
-        setFlipped(new Set());
+      try {
+        if (card1.questionId === card2.questionId) {
+          // Match found
+          setMatched((prev) => new Set(prev).add(card1.questionId));
+          setFlipped(new Set());
 
-        // Broadcast match event to other players
-        try {
-          const ch = `presence-game-${sessionId}`;
-          const payload = {
-            channel: ch,
-            event: "card-match",
-            data: {
-              who: playerName ?? "unknown",
-              questionId: card1.questionId,
-              ts: new Date().toISOString(),
-            },
-          };
+          // Broadcast match event to other players
+          try {
+            const ch = `presence-game-${sessionId}`;
+            const payload = {
+              channel: ch,
+              event: "card-match",
+              data: {
+                who: playerName ?? "unknown",
+                questionId: card1.questionId,
+                ts: new Date().toISOString(),
+              },
+            };
 
-          fetch("/api/pusher/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }).catch(() => console.error("Failed to broadcast match"));
-        } catch (err) {
-          console.error("Error broadcasting match:", err);
+            fetch("/api/pusher/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }).catch(() => console.error("Failed to broadcast match"));
+          } catch (err) {
+            console.error("Error broadcasting match:", err);
+          }
+
+          // same player keeps the turn
+          try {
+            const ch = `presence-game-${sessionId}`;
+            const payload = {
+              channel: ch,
+              event: "turn-keep",
+              data: {
+                who: playerName ?? "unknown",
+                ts: new Date().toISOString(),
+              },
+            };
+            fetch("/api/pusher/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }).catch(() => {});
+          } catch {}
+        } else {
+          // No match - flip cards back and broadcast unflip event
+          setFlipped(new Set());
+
+          try {
+            const ch = `presence-game-${sessionId}`;
+            const payload = {
+              channel: ch,
+              event: "card-unflip",
+              data: {
+                who: playerName ?? "unknown",
+                cards: [card1.id, card2.id],
+                ts: new Date().toISOString(),
+              },
+            };
+
+            fetch("/api/pusher/", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }).catch(() => console.error("Failed to broadcast unflip"));
+          } catch (err) {
+            console.error("Error broadcasting unflip:", err);
+          }
+
+          // determine next player and broadcast turn-pass
+          try {
+            const channelAny = channelRef.current as unknown as {
+              members?: { each?: (fn: (mem: PresenceMember) => void) => void };
+            };
+            const membersArr: string[] = [];
+            if (
+              channelAny &&
+              channelAny.members &&
+              typeof channelAny.members.each === "function"
+            ) {
+              channelAny.members.each((mem: PresenceMember) => {
+                const name = mem.info?.name ?? mem.info?.username ?? mem.id;
+                if (typeof name === "string") membersArr.push(name);
+              });
+            }
+
+            // pick next different player (simple round-robin/random fallback)
+            let next: string | null = null;
+            if (membersArr.length > 0) {
+              const others = membersArr.filter((n) => n !== (playerName ?? ""));
+              if (others.length > 0) next = others[0];
+              else next = membersArr[0];
+            }
+
+            if (next) {
+              const ch2 = `presence-game-${sessionId}`;
+              const payload2 = {
+                channel: ch2,
+                event: "turn-pass",
+                data: { who: next, ts: new Date().toISOString() },
+              };
+              fetch("/api/pusher/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload2),
+              }).catch(() => {});
+              // locally set next player so UI updates immediately
+              setActivePlayer(next);
+            }
+          } catch {
+            // ignore
+          }
         }
-      } else {
-        // No match - flip cards back and broadcast unflip event
-        setFlipped(new Set());
-
-        try {
-          const ch = `presence-game-${sessionId}`;
-          const payload = {
-            channel: ch,
-            event: "card-unflip",
-            data: {
-              who: playerName ?? "unknown",
-              cards: [card1.id, card2.id],
-              ts: new Date().toISOString(),
-            },
-          };
-
-          fetch("/api/pusher/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }).catch(() => console.error("Failed to broadcast unflip"));
-        } catch (err) {
-          console.error("Error broadcasting unflip:", err);
-        }
+      } finally {
+        setIsResolving(false);
       }
     }, 1000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      setIsResolving(false);
+    };
   }, [flipped, cards, sessionId, playerName]);
 
   // ... (Remaining JSX/Grid logic remains identical to your original)
@@ -334,6 +502,21 @@ export default function GameGrid({
           Matched: <span className="font-bold">{matched.size}</span> /{" "}
           {questions.length}
         </p>
+        <div className="mt-2">
+          {activePlayer ? (
+            activePlayer === (playerName ?? null) ? (
+              <p className="text-sm text-blue-600 font-semibold">Your turn</p>
+            ) : (
+              <p className="text-sm text-gray-700">Turn: {activePlayer}</p>
+            )
+          ) : (
+            <p className="text-sm text-gray-400">Waiting for players…</p>
+          )}
+
+          {isResolving && (
+            <p className="text-xs text-gray-500 mt-1">Resolving...</p>
+          )}
+        </div>
         {gameWon && (
           <p className="text-green-600 font-semibold mt-2">🎉 You won!</p>
         )}
