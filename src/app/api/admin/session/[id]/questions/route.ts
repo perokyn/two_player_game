@@ -4,10 +4,11 @@ import { getPrisma } from "@/lib/prisma";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id?: string } },
+  { params }: { params: Promise<{ id?: string }> },
 ) {
   try {
-    const idRaw = params?.id;
+    const resolvedParams = await params;
+    const idRaw = resolvedParams?.id;
     if (!idRaw) {
       return NextResponse.json(
         { error: "Missing session id" },

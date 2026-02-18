@@ -14,13 +14,18 @@ export async function GET(req: NextRequest) {
     // payload includes passcodeId, name, sessionId (if you signed that way)
     const userName =
       typeof payload["name"] === "string" ? payload["name"] : null;
-    const sessionId =
-      typeof payload["sessionId"] === "number"
-        ? payload["sessionId"]
-        : Number(payload["sessionId"] ?? null);
+
+    // Properly extract and validate sessionId
+    let sessionId: number | null = null;
+    if (typeof payload["sessionId"] === "number") {
+      sessionId = payload["sessionId"];
+    } else if (typeof payload["sessionId"] === "string") {
+      const parsed = Number(payload["sessionId"]);
+      sessionId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
 
     // Optionally fetch DB records if you need more info (e.g., player id)
-    if (sessionId) {
+    if (sessionId && Number.isFinite(sessionId) && sessionId > 0) {
       const prisma = await getPrisma();
       // find the player record if you want player's DB id etc.
       const player = await prisma.player.findFirst({
@@ -37,7 +42,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       name: userName,
-      sessionId: sessionId ?? null,
+      sessionId,
     });
   } catch (err) {
     console.error("user/me error:", err);
