@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import usePresencePusher from "./userPresencePusher";
 import Link from "next/link";
 import FlipFeed from "@/components/FlipFeed";
+import GameGrid from "./matching/GameGrid";
 /**
  * Game page (client) — shows player info, presence members and small demo controls.
  *
@@ -12,7 +13,14 @@ import FlipFeed from "@/components/FlipFeed";
  * - /api/user/me (GET) to return { ok: true, name, sessionId }
  * - usePresencePusher hook at ./usePresencePusher
  * - pusher presence auth endpoint at /api/pusher/auth (already created)
+ * - /api/session/[id]/questions to return the session's questionSet (optional)
  */
+
+type QuestionShape = {
+  id: number;
+  text: string;
+  order: number;
+};
 
 export default function GamePage() {
   const [playerName, setPlayerName] = useState<string | null>(null);
@@ -20,6 +28,12 @@ export default function GamePage() {
   const [loading, setLoading] = useState(true);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [lastEvent, setLastEvent] = useState<string | null>(null);
+
+  // question set state (loaded from /api/session/[id]/questions)
+  const [questionSetName, setQuestionSetName] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<QuestionShape[] | null>(null);
+  const [questionsError, setQuestionsError] = useState<string | null>(null);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
 
   // fetch user info (reads HttpOnly cookie server-side)
   useEffect(() => {
@@ -54,8 +68,95 @@ export default function GamePage() {
     };
   }, []);
 
+  // When sessionId becomes available, fetch the attached question set (if any).
+  useEffect(() => {
+    // reset per-session state
+    setQuestionSetName(null);
+    setQuestions(null);
+    setQuestionsError(null);
+
+    if (typeof sessionId !== "number" || !Number.isFinite(sessionId)) return;
+
+    let cancelled = false;
+    const ac = new AbortController();
+
+    (async () => {
+      setLoadingQuestions(true);
+      try {
+        const res = await fetch(`/api/session/${sessionId}/questions`, {
+          method: "GET",
+          signal: ac.signal,
+        });
+
+        const text = await res.text();
+        let json: unknown = null;
+        try {
+          json = text ? JSON.parse(text) : null;
+        } catch {
+          json = null;
+        }
+
+        if (!res.ok) {
+          const maybe = (
+            json && typeof json === "object" && json !== null
+              ? ((json as Record<string, unknown>)["error"] ??
+                (json as Record<string, unknown>)["message"])
+              : null
+          ) as string | null;
+          const errMsg = maybe ?? `Failed to load questions (${res.status})`;
+          throw new Error(errMsg);
+        }
+
+        // parse successful payload
+        const payload = json as { ok?: boolean; questionSet?: unknown } | null;
+        const qset = payload?.questionSet as
+          | { id: number; name: string; questions: QuestionShape[] }
+          | null
+          | undefined;
+
+        if (!qset) {
+          if (!cancelled) {
+            setQuestionSetName(null);
+            setQuestions(null);
+            setQuestionsError(null);
+          }
+        } else {
+          if (!cancelled) {
+            setQuestionSetName(String(qset.name ?? "Unnamed set"));
+            setQuestions(
+              Array.isArray(qset.questions)
+                ? qset.questions.map((q) => ({
+                    id: Number(q.id),
+                    text: String(q.text ?? ""),
+                    order: Number(q.order ?? 0),
+                  }))
+                : [],
+            );
+            setQuestionsError(null);
+          }
+        }
+      } catch (err: unknown) {
+        if (ac.signal.aborted) return;
+        console.error("load session questions error", err);
+        if (!cancelled) {
+          setQuestions(null);
+          setQuestionSetName(null);
+          setQuestionsError(
+            err instanceof Error ? err.message : "Failed loading questions",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingQuestions(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  }, [sessionId]);
+
   // connect to presence channel using the hook
-  // const { connected, members, error } = usePresencePusher(sessionId);
   const [shouldConnect, setShouldConnect] = useState<boolean>(true);
   // pass sessionId only when shouldConnect is true
   const effectiveSessionId = shouldConnect ? sessionId : null;
@@ -204,6 +305,53 @@ export default function GamePage() {
         </div>
         {lastEvent && <div style={{ marginTop: 8 }}>Last: {lastEvent}</div>}
       </section>
+
+      <section style={{ marginTop: 20 }}>
+        <h2>Question set</h2>
+        {loadingQuestions ? (
+          <div>Loading questions...</div>
+        ) : questionsError ? (
+          <div style={{ color: "crimson" }}>{questionsError}</div>
+        ) : questions ? (
+          <div>
+            <div>
+              <strong>Set:</strong> {questionSetName ?? "(unnamed)"}
+            </div>
+            <div>
+              <strong>Questions:</strong> {questions.length}
+            </div>
+            <ul style={{ marginTop: 8 }}>
+              {questions.slice(0, 6).map((q) => (
+                <li key={q.id}>
+                  <small>{q.order + 1}.</small> {q.text}
+                </li>
+              ))}
+              {questions.length > 6 && <li>...and more</li>}
+            </ul>
+          </div>
+        ) : (
+          <div>No question set attached to this session.</div>
+        )}
+      </section>
+
+      <section style={{ marginTop: 20 }}>
+        <h2>Matching Game</h2>
+        {loadingQuestions ? (
+          <div>Loading game...</div>
+        ) : questionsError ? (
+          <div style={{ color: "crimson" }}>{questionsError}</div>
+        ) : questions && questions.length > 0 ? (
+          <GameGrid
+            questions={questions}
+            sessionId={sessionId}
+            playerName={playerName}
+            isLoading={loadingQuestions}
+          />
+        ) : (
+          <div>No questions attached to this session.</div>
+        )}
+      </section>
+
       <section style={{ marginTop: 20 }}>
         <h2>Flip Feed</h2>
         <FlipFeed sessionId={sessionId} />
