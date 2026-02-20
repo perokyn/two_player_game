@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import usePresencePusher from "./userPresencePusher";
 import Link from "next/link";
-import FlipFeed from "@/components/FlipFeed";
+
 import GameGrid from "./matching/GameGrid";
 /**
  * Game page (client) — shows player info, presence members and small demo controls.
@@ -161,58 +161,9 @@ export default function GamePage() {
   // pass sessionId only when shouldConnect is true
   const effectiveSessionId = shouldConnect ? sessionId : null;
   const { connected, members, error } = usePresencePusher(effectiveSessionId);
-
-  async function broadcastCardFlip() {
-    try {
-      setLastEvent(null);
-      const ch = `presence-game-${sessionId}`;
-      const payload = {
-        channel: ch,
-        event: "card-flip",
-        data: { who: playerName ?? "unknown", card: "A1" },
-      };
-
-      console.debug("broadcastCardFlip -> sending", payload);
-
-      const res = await fetch("/api/pusher/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      // Read text once (avoids "body disturbed" errors)
-      const bodyText = await res.text();
-
-      if (!res.ok) {
-        // Try parse JSON error, otherwise show single-line trimmed text
-        let errMsg = `Trigger failed ${res.status}`;
-        try {
-          const parsed = JSON.parse(bodyText);
-          errMsg = String(parsed?.error ?? parsed?.message ?? errMsg);
-        } catch {
-          const trimmed = bodyText.replace(/\s+/g, " ").slice(0, 300);
-          if (trimmed) errMsg = trimmed + (bodyText.length > 300 ? "..." : "");
-        }
-        console.error("broadcastCardFlip error detail:", bodyText);
-        throw new Error(errMsg);
-      }
-
-      // success
-      let json = null;
-      try {
-        json = bodyText ? JSON.parse(bodyText) : null;
-      } catch {
-        json = null;
-      }
-      console.debug("broadcast success response:", json ?? bodyText);
-      setLastEvent("card-flip sent");
-    } catch (err: unknown) {
-      console.error("broadcast error:", err);
-      if (err instanceof Error) setLastEvent(err.message);
-      else setLastEvent("Unknown error while broadcasting");
-    }
-  }
-
+  // admin check: show full controls only to Admin or names containing "admin"
+  const isAdmin = typeof playerName === "string" && /admin/i.test(playerName);
+  // Might need ot be removed, only be used by admin!!
   function copySessionLink() {
     if (!sessionId) return;
     const url = `${window.location.origin}/game?sessionId=${sessionId}`;
@@ -229,108 +180,342 @@ export default function GamePage() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          padding: "12px 0",
+          borderBottom: "1px solid #e6e9f2",
+          background: "#ffffff",
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          marginBottom: 8,
         }}
       >
-        <h1 style={{ margin: 0 }}>Counseling Game — Play</h1>
-        <div>
-          <Link href="/">
-            <button style={{ marginRight: 8 }}>Home</button>
-          </Link>
-          <Link href="/admin/dashboard">
-            <button>Admin</button>
-          </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <h1 style={{ margin: 0, fontSize: 20, letterSpacing: 0.2 }}>
+            Card Matching Game
+          </h1>
+          <span style={{ color: "#6b7280", fontSize: 13 }}>
+            Play and match cards
+          </span>
         </div>
-      </header>
 
-      <section style={{ marginTop: 24 }}>
-        <h2>Player</h2>
-        {loading ? (
-          <div>Loading session...</div>
-        ) : (
-          <>
-            <div>
-              <strong>Name:</strong> {playerName ?? "Not signed in"}
-            </div>
-            <div>
-              <strong>Session:</strong> {sessionId ?? "—"}
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <button onClick={copySessionLink} disabled={!sessionId}>
-                Copy session link
+        {isAdmin && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Link href="/">
+              <button
+                style={{
+                  marginRight: 0,
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #e6e9f2",
+                  background: "#f8fafc",
+                  color: "#111827",
+                }}
+              >
+                Home
               </button>
-            </div>
-            {statusMsg && (
-              <div style={{ color: "crimson", marginTop: 8 }}>{statusMsg}</div>
-            )}
-          </>
-        )}
-      </section>
-
-      <section style={{ marginTop: 20 }}>
-        <h2>Presence</h2>
-        <div>
-          <strong>Connection:</strong>{" "}
-          {connected ? "Connected" : "Disconnected"}
-        </div>
-        {error && <div style={{ color: "crimson" }}>Pusher error: {error}</div>}
-        <div style={{ marginTop: 12 }}>
-          <h3>Players in this session</h3>
-          {members && Object.keys(members).length > 0 ? (
-            <ul>
-              {Object.entries(members).map(([id, info]) => (
-                <li key={id}>
-                  <strong>{info?.name ?? "(no name)"}</strong>{" "}
-                  <small>({id})</small>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div>No players connected yet.</div>
-          )}
-          <div style={{ marginTop: 8 }}>
-            <button onClick={() => setShouldConnect((s) => !s)}>
-              {shouldConnect ? "Disconnect" : "Connect"}
-            </button>
+            </Link>
+            <Link href="/admin/dashboard">
+              <button
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #4f46e5",
+                  background: "#4f46e5",
+                  color: "white",
+                }}
+              >
+                Admin
+              </button>
+            </Link>
           </div>
-        </div>
-      </section>
+        )}
+      </header>
+      {/* Game info and player name section (admin-only) */}
+      {isAdmin && (
+        <section style={{ marginTop: 24 }}>
+          <h2 style={{ marginBottom: 12 }}>Player</h2>
+          {loading ? (
+            <div>Loading session...</div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                alignItems: "center",
+                padding: 16,
+                borderRadius: 12,
+                background: "linear-gradient(180deg,#fff,#fbfbff)",
+                boxShadow: "0 6px 18px rgba(15,23,42,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  background: "#eef2ff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  color: "#3730a3",
+                  fontSize: 18,
+                  flexShrink: 0,
+                }}
+              >
+                {playerName
+                  ? String(
+                      (playerName || "")
+                        .split(" ")
+                        .map((p) => p[0] ?? "")
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase(),
+                    )
+                  : "—"}
+              </div>
 
-      <section style={{ marginTop: 20 }}>
-        <h2>Demo Controls</h2>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={broadcastCardFlip} disabled={!connected}>
-            Broadcast card-flip
-          </button>
-          <button onClick={() => setLastEvent(null)}>Clear</button>
-        </div>
-        {lastEvent && <div style={{ marginTop: 8 }}>Last: {lastEvent}</div>}
-      </section>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <div style={{ overflow: "hidden" }}>
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap",
+                        textOverflow: "ellipsis",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {playerName ?? "Not signed in"}
+                    </div>
+                    <div style={{ color: "#6b7280", marginTop: 4 }}>
+                      Session:{" "}
+                      <strong style={{ color: "#111827" }}>
+                        {sessionId ?? "—"}
+                      </strong>
+                    </div>
+                  </div>
+                  <div
+                    style={{ display: "flex", gap: 8, alignItems: "center" }}
+                  >
+                    <button
+                      onClick={copySessionLink}
+                      disabled={!sessionId}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #e6e9f2",
+                        background: sessionId ? "#4f46e5" : "#f3f4f6",
+                        color: sessionId ? "white" : "#9ca3af",
+                        cursor: sessionId ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      Copy link
+                    </button>
+                  </div>
+                </div>
 
+                {statusMsg && (
+                  <div
+                    style={{ color: "#ef4444", marginTop: 10, fontSize: 13 }}
+                  >
+                    {statusMsg}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      {/* PLayer list and discommection section */}
       <section style={{ marginTop: 20 }}>
-        <h2>Question set</h2>
-        {loadingQuestions ? (
-          <div>Loading questions...</div>
-        ) : questionsError ? (
-          <div style={{ color: "crimson" }}>{questionsError}</div>
-        ) : questions ? (
-          <div>
-            <div>
-              <strong>Set:</strong> {questionSetName ?? "(unnamed)"}
+        <h2 style={{ marginBottom: 12 }}>Presence</h2>
+        {isAdmin ? (
+          <div
+            style={{
+              padding: 16,
+              borderRadius: 12,
+              background: "#ffffff",
+              boxShadow: "0 6px 18px rgba(2,6,23,0.04)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ fontWeight: 700 }}>Connection</div>
+                <div
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 9999,
+                    background: connected ? "#ecfeff" : "#fff1f2",
+                    color: connected ? "#065f46" : "#b91c1c",
+                    border: connected
+                      ? "1px solid #bbf7d0"
+                      : "1px solid #fecaca",
+                    fontSize: 13,
+                  }}
+                >
+                  {connected ? "Connected" : "Disconnected"}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  onClick={() => setShouldConnect((s) => !s)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #e6e9f2",
+                    background: shouldConnect ? "#ef4444" : "#10b981",
+                    color: "white",
+                  }}
+                >
+                  {shouldConnect ? "Disconnect" : "Connect"}
+                </button>
+              </div>
             </div>
-            <div>
-              <strong>Questions:</strong> {questions.length}
+
+            {error && (
+              <div style={{ color: "#ef4444", marginTop: 12 }}>
+                Pusher error: {error}
+              </div>
+            )}
+
+            <div style={{ marginTop: 14 }}>
+              <h3 style={{ margin: "0 0 10px 0" }}>Players in this session</h3>
+              {members && Object.keys(members).length > 0 ? (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {Object.entries(members).map(([id, info]) => (
+                    <div
+                      key={id}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "8px 10px",
+                        borderRadius: 10,
+                        background: "#f8fafc",
+                        border: "1px solid #eef2ff",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 9999,
+                          background: "#eef2ff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontWeight: 700,
+                          color: "#3730a3",
+                          fontSize: 13,
+                        }}
+                      >
+                        {info?.name
+                          ? String(
+                              (info.name || "")
+                                .split(" ")
+                                .map((p: string) => p[0] || "")
+                                .slice(0, 2)
+                                .join(""),
+                            ).toUpperCase()
+                          : "?"}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {info?.name ?? "(no name)"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#6b7280" }}>
+                          ID: {id}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: "#6b7280" }}>
+                  No players connected yet.
+                </div>
+              )}
             </div>
-            <ul style={{ marginTop: 8 }}>
-              {questions.slice(0, 6).map((q) => (
-                <li key={q.id}>
-                  <small>{q.order + 1}.</small> {q.text}
-                </li>
-              ))}
-              {questions.length > 6 && <li>...and more</li>}
-            </ul>
           </div>
         ) : (
-          <div>No question set attached to this session.</div>
+          // non-admin view: only show the player list (no controls or connection pill)
+          <div style={{ marginTop: 8 }}>
+            {members && Object.keys(members).length > 0 ? (
+              <ul
+                style={{
+                  padding: 0,
+                  margin: 0,
+                  listStyle: "none",
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                {Object.entries(members).map(([id, info]) => (
+                  <li
+                    key={id}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      padding: "6px 8px",
+                      borderRadius: 8,
+                      background: "#f8fafc",
+                      border: "1px solid #eef2ff",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 9999,
+                        background: "#eef2ff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 700,
+                        color: "#3730a3",
+                        fontSize: 12,
+                      }}
+                    >
+                      {info?.name
+                        ? String(
+                            (info.name || "")
+                              .split(" ")
+                              .map((p: string) => p[0] || "")
+                              .slice(0, 2)
+                              .join(""),
+                          ).toUpperCase()
+                        : "?"}
+                    </div>
+                    <div style={{ fontWeight: 700 }}>
+                      {info?.name ?? "(no name)"}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div style={{ color: "#6b7280" }}>No players connected yet.</div>
+            )}
+          </div>
         )}
       </section>
 
@@ -353,8 +538,7 @@ export default function GamePage() {
       </section>
 
       <section style={{ marginTop: 20 }}>
-        <h2>Flip Feed</h2>
-        <FlipFeed sessionId={sessionId} />
+        <h2>Session: {sessionId}</h2>
       </section>
     </main>
   );
