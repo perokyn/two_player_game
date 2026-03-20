@@ -109,9 +109,21 @@ export default function GameGrid({
       }
     };
 
+    // const onRemoteMatch = (data: { who: string; questionId: number }) => {
+    //   if (data.who !== playerName)
+    //     setMatched((prev) => new Set(prev).add(data.questionId));
+    // };
     const onRemoteMatch = (data: { who: string; questionId: number }) => {
-      if (data.who !== playerName)
+      if (data.who !== playerName) {
         setMatched((prev) => new Set(prev).add(data.questionId));
+        // Clear these cards from remoteFlipped so they flip back face-down
+        setRemoteFlipped((prev) => {
+          const next = new Set(prev);
+          next.delete(`q${data.questionId}-0`);
+          next.delete(`q${data.questionId}-1`);
+          return next;
+        });
+      }
     };
 
     const onTurnEvent = (data: { who: string }) => {
