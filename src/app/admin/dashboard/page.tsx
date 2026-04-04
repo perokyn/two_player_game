@@ -483,87 +483,90 @@ export default function AdminDashboard() {
             <div className="md:col-span-2 bg-white dark:bg-gray-900 p-5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
               {selectedMenu === "generate" && (
                 <>
-                  <h2 className="text-lg font-medium mb-3">Passcode</h2>
-
-                  <form onSubmit={createPass} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Session ID (optional)
-                      </label>
-                      <input
-                        value={sessionId}
-                        onChange={(e) => setSessionId(e.target.value)}
-                        placeholder="Leave blank to create a new session"
-                        className="mt-1 block w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 shadow-sm focus:ring-2 focus:ring-indigo-300 dark:text-white"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="submit"
-                        disabled={creating}
-                        className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-60"
-                      >
-                        {creating ? "Creating…" : "Create Passcode"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSessionId("");
-                          setPasscode(null);
-                          setMessage("");
-                        }}
-                        className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 dark:text-gray-300"
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="mt-4">
-                    {message && (
-                      <div className="text-sm text-gray-700 dark:text-gray-400">
-                        {message}
-                      </div>
-                    )}
-
-                    {passcode && (
-                      <div className="mt-3 flex items-center gap-3">
-                        <div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            Passcode
-                          </div>
-                          <div className="text-2xl font-mono font-semibold dark:text-white">
-                            {passcode.code}
-                          </div>
-                          <div className="text-xs text-gray-400 dark:text-gray-500">
-                            Session {passcode.sessionId}
-                          </div>
-                        </div>
-
-                        <div className="ml-auto flex items-center gap-2">
-                          <button
-                            onClick={copyPasscodeToClipboard}
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-200"
-                          >
-                            <ClipboardIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                            <span className="text-sm">Copy</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-6">
-                    <JoinCurrentGameButton />
-                  </div>
+                  <h2 className="text-lg font-medium mb-3">tbd</h2>
                 </>
               )}
 
               {selectedMenu === "questions" && (
                 // show the QuestionList component + Save / Load controls
                 <div>
+                  <>
+                    <h2 className="text-lg font-medium mb-3">Passcode</h2>
+
+                    <form onSubmit={createPass} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Session ID (optional)
+                        </label>
+                        <input
+                          value={sessionId}
+                          onChange={(e) => setSessionId(e.target.value)}
+                          placeholder="Leave blank to create a new session"
+                          className="mt-1 block w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 shadow-sm focus:ring-2 focus:ring-indigo-300 dark:text-white"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="submit"
+                          disabled={creating}
+                          className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-60"
+                        >
+                          {creating ? "Creating…" : "Create Passcode"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSessionId("");
+                            setPasscode(null);
+                            setMessage("");
+                          }}
+                          className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 dark:text-gray-300"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </form>
+
+                    <div className="mt-4">
+                      {message && (
+                        <div className="text-sm text-gray-700 dark:text-gray-400">
+                          {message}
+                        </div>
+                      )}
+
+                      {passcode && (
+                        <div className="mt-3 flex items-center gap-3">
+                          <div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              Passcode
+                            </div>
+                            <div className="text-2xl font-mono font-semibold dark:text-white">
+                              {passcode.code}
+                            </div>
+                            <div className="text-xs text-gray-400 dark:text-gray-500">
+                              Session {passcode.sessionId}
+                            </div>
+                          </div>
+
+                          <div className="ml-auto flex items-center gap-2">
+                            <button
+                              onClick={copyPasscodeToClipboard}
+                              className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-200"
+                            >
+                              <ClipboardIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                              <span className="text-sm">Copy</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-6">
+                      <JoinCurrentGameButton />
+                    </div>
+                  </>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <QuestionList
