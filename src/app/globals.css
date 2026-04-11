@@ -19,6 +19,10 @@
   --error-border: #fecaca;
   --destructive: #ef4444;
   --constructive: #10b981;
+  --color-brand: #3b82f6;
+  --color-surface: #ffffff;
+  --neumorphic-main: #b8b9be;
+  --neumorphic-highlight: #ffffff;
 }
 
 /* Dark mode overrides */
@@ -39,13 +43,27 @@
   --error-bg: #7f1d1d;
   --error-foreground: #fca5a5;
   --error-border: #991b1b;
+  --color-brand: #60a5fa;
+  --color-surface: #c7c7c7;
+  --color-bevelside: #313131;
+  --neumorphic-main: #020617;
+  --neumorphic-highlight: #1e293b;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Define Dark Mode overrides using your existing data-theme attribute */
+
+@theme {
+  /* Define the 'default' value directly here for Tailwind 4 */
+  --color-brand: #3b82f6;
+  --color-surface: #ffffff;
+  --color-bevelside: #dad9d9;
+  --color-bevelsidelight: #dad9d9;
+
+  /* Keep your other custom properties */
+  --shadow-neumorphic:
+    inset 5px 5px 10px var(--neumorphic-main),
+    inset -5px -5px 10px var(--neumorphic-highlight);
+  --shadow-subtle: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
 body {

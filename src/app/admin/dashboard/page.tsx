@@ -11,8 +11,12 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   ArrowRightIcon,
+  MoonIcon,
 } from "@heroicons/react/24/outline";
 import QuestionList, { Question } from "@/components/QuestionList";
+import SunnyIcon from "@mui/icons-material/Sunny";
+import { Session } from "inspector/promises";
+import { SessionSetup } from "./SessionSetup";
 
 /* keep PasscodeResponse type and JoinCurrentGameButton as before */
 type PasscodeResponse = {
@@ -367,109 +371,69 @@ export default function AdminDashboard() {
         <div className="flex-1 p-6">
           <header className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                Admin Dashboard
-              </h1>
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-              >
-                {theme === "light" ? "🌙" : "☀️"}
-              </button>
+              <h1 className="text-2xl font-semibold ">Admin Dashboard</h1>
             </div>
+
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                onClick={toggleTheme}
+              />
+              {/* <!-- Embossed Track --> */}
+              <div
+                className="w-20 h-10 bg-gray-200 rounded-full shadow-[inset_0_2px_5px_rgba(0,0,0,0.8)] 
+              peer-checked:bg-gray-500 transition-colors duration-300"
+              ></div>
+
+              {/* <!-- Sliding Thumb --> */}
+              <div
+                className="absolute left-1 top-1 w-8 h-8 bg-white rounded-full shadow-md border-2 border-gray-100 peer-checked:border-gray-100 
+              transition-transform duration-300 peer-checked:translate-x-10 "
+              >
+                <div className="text-gray-500 text-lg justify-center flex items-center h-full">
+                  {" "}
+                  {theme === "light" ? <SunnyIcon /> : <MoonIcon />}
+                </div>
+              </div>
+
+              {/* <!-- Embedded Text --> */}
+              <span className="absolute left-10 text-[10px] font-semibold text-gray-600 peer-checked:hidden leading-3">
+                LIGHT <br /> MODE
+              </span>
+              <span className=" display: block absolute left-3 text-[10px] font-semibold text-white hidden peer-checked:block leading-3">
+                DARK
+                <br /> MODE
+              </span>
+            </label>
           </header>
 
-          <section className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-3  p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 backdrop-blur-sm">
+          <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 ">
+            <div className="lg:col-span-3  p-6 rounded-lg shadow-sm border  dark:border-gray-400 backdrop-blur-sm">
               {selectedMenu === "questions" && (
                 <div className="space-y-8">
                   {/* STEP 1: SESSION */}
-                  <div
-                    className={`p-4 rounded-xl border-2 transition-colors ${hasSession ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10" : "border-indigo-100 bg-gray-50 dark:border-indigo-900/20 dark:bg-gray-800/20"}`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${hasSession ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white"}`}
-                        >
-                          1
-                        </span>
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                          Step 1: Create or Enter Session
-                        </h2>
-                      </div>
-                      {hasSession && (
-                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
-                          <CheckCircleIcon className="h-5 w-5" /> Session Active
-                        </div>
-                      )}
-                    </div>
-
-                    <form
-                      onSubmit={createPass}
-                      className="flex flex-wrap items-end gap-4"
-                    >
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wider">
-                          Target Session ID
-                        </label>
-                        <input
-                          value={sessionId}
-                          onChange={(e) => setSessionId(e.target.value)}
-                          placeholder="New session (auto)"
-                          className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={creating}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition text-sm font-medium"
-                      >
-                        {creating
-                          ? "Creating..."
-                          : passcode
-                            ? "Renew Session"
-                            : "Create Session"}
-                      </button>
-                    </form>
-
-                    {passcode && (
-                      <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center gap-4 shadow-sm">
-                        <div>
-                          <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-widest">
-                            Active Code
-                          </div>
-                          <div className="text-xl font-mono font-bold text-indigo-600 dark:text-indigo-400 tracking-tight">
-                            {passcode.code}
-                          </div>
-                        </div>
-                        <button
-                          onClick={copyPasscodeToClipboard}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition text-gray-500 dark:text-gray-400"
-                        >
-                          <ClipboardIcon className="h-5 w-5" />
-                        </button>
-                        <div className="ml-auto text-right">
-                          <div className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">
-                            Session #
-                          </div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {passcode.sessionId}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <SessionSetup
+                    hasSession={hasSession}
+                    createPass={createPass}
+                    sessionId={sessionId}
+                    setSessionId={setSessionId}
+                    creating={creating}
+                    passcode={passcode}
+                    copyPasscodeToClipboard={copyPasscodeToClipboard}
+                    CheckCircleIcon={CheckCircleIcon}
+                    ClipboardIcon={ClipboardIcon}
+                  />
 
                   {/* VISUAL BRIDGE */}
                   <div className="flex justify-center -my-4 relative z-10">
                     <div
-                      className={`p-2 rounded-full border-4 shadow-sm transition-all ${
+                      className={`p-2 rounded-full border-2 shadow-sm transition-all ${
                         isAttached
                           ? "bg-emerald-600 border-white dark:border-gray-900"
                           : hasSession && selectedSetId
                             ? "bg-indigo-600 border-white dark:border-gray-900 animate-pulse"
-                            : "bg-gray-200 dark:bg-gray-800 border-white dark:border-gray-900"
+                            : "bg-gray-200 border-white dark:border-gray-900"
                       }`}
                     >
                       <LinkIcon
@@ -480,7 +444,7 @@ export default function AdminDashboard() {
 
                   {/* STEP 2: QUESTIONS */}
                   <div
-                    className={`p-4 rounded-xl border-2 transition-colors ${isAttached ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10" : "border-indigo-100 bg-gray-50 dark:border-indigo-900/20 dark:bg-gray-800/20"}`}
+                    className={`p-4 rounded-xl border-2 transition-colors ${isAttached ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10" : "border-indigo-100 bg-gray-50 dark:border-indigo-900/20 dark:bg-gray-200/10"}`}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -489,7 +453,7 @@ export default function AdminDashboard() {
                         >
                           2
                         </span>
-                        <h2 className="text-lg font-semibold text-white dark:text-gray-800">
+                        <h2 className="text-lg font-semibold ">
                           Step 2: Attach Question Set
                         </h2>
                       </div>
@@ -595,7 +559,7 @@ export default function AdminDashboard() {
                         >
                           3
                         </span>
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        <h2 className="text-lg font-semibold ">
                           Step 3: Join Current Game
                         </h2>
                       </div>
