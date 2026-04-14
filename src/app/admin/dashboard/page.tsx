@@ -17,6 +17,7 @@ import QuestionList, { Question } from "@/components/QuestionList";
 import SunnyIcon from "@mui/icons-material/Sunny";
 import { Session } from "inspector/promises";
 import { SessionSetup } from "./SessionSetup";
+import DiskInfo from "@/components/DiskInfo";
 
 /* keep PasscodeResponse type and JoinCurrentGameButton as before */
 type PasscodeResponse = {
@@ -388,17 +389,17 @@ export default function AdminDashboard() {
 
               {/* <!-- Sliding Thumb --> */}
               <div
-                className="absolute left-1 top-1 w-8 h-8 bg-white rounded-full shadow-md border-2 border-gray-100 peer-checked:border-gray-100 
-              transition-transform duration-300 peer-checked:translate-x-10 "
+                className="absolute left-1 top-1 w-8 h-8  rounded-full   
+              transition-transform duration-300 peer-checked:translate-x-10 bg-gradient-to-br from-white to-gray-300 
+              shadow-[1px_2px_2px_#9e9e9e] "
               >
                 <div className="text-gray-500 text-lg justify-center flex items-center h-full">
-                  {" "}
                   {theme === "light" ? <SunnyIcon /> : <MoonIcon />}
                 </div>
               </div>
 
               {/* <!-- Embedded Text --> */}
-              <span className="absolute left-10 text-[10px] font-semibold text-gray-600 peer-checked:hidden leading-3">
+              <span className="absolute  left-10 text-[10px] font-semibold text-gray-600  peer-checked:hidden leading-3">
                 LIGHT <br /> MODE
               </span>
               <span className=" display: block absolute left-3 text-[10px] font-semibold text-white hidden peer-checked:block leading-3">
@@ -409,7 +410,7 @@ export default function AdminDashboard() {
           </header>
 
           <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 ">
-            <div className="lg:col-span-3  p-6 rounded-lg shadow-sm border  dark:border-gray-400 backdrop-blur-sm">
+            <div className="lg:col-span-3  p-6 rounded-lg shadow-layout  ">
               {selectedMenu === "questions" && (
                 <div className="space-y-8">
                   {/* STEP 1: SESSION */}
@@ -426,14 +427,14 @@ export default function AdminDashboard() {
                   />
 
                   {/* VISUAL BRIDGE */}
-                  <div className="flex justify-center -my-4 relative z-10">
+                  <div className="flex justify-center relative z-10 shadow-neumorphic w-12 h-12 rounded-full    flex items-center ">
                     <div
-                      className={`p-2 rounded-full border-2 shadow-sm transition-all ${
+                      className={`p-2 rounded-full  shadow-sm transition-all ${
                         isAttached
-                          ? "bg-emerald-600 border-white dark:border-gray-900"
+                          ? "bg-emerald-600 border-white "
                           : hasSession && selectedSetId
-                            ? "bg-indigo-600 border-white dark:border-gray-900 animate-pulse"
-                            : "bg-gray-200 border-white dark:border-gray-900"
+                            ? "bg-indigo-600 border-white  animate-pulse"
+                            : "bg-gray-200  "
                       }`}
                     >
                       <LinkIcon
@@ -444,19 +445,15 @@ export default function AdminDashboard() {
 
                   {/* STEP 2: QUESTIONS */}
                   <div
-                    className={`p-4 rounded-xl border-2 transition-colors ${isAttached ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10" : "border-indigo-100 bg-gray-50 dark:border-indigo-900/20 dark:bg-gray-200/10"}`}
+                    className={`p-4 shadow-neumorphic rounded-xl border-2 transition-colors ${isAttached ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10" : "border-indigo-100 bg-gray-50 dark:border-indigo-900/20 dark:bg-gray-200/10"}`}
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${isAttached ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white"}`}
-                        >
-                          2
-                        </span>
-                        <h2 className="text-lg font-semibold ">
-                          Step 2: Attach Question Set
-                        </h2>
-                      </div>
+                      <DiskInfo
+                        hasSession={hasSession}
+                        infoText="Step 2: Attach Question Set"
+                        sideText="2"
+                        status={hasSession ? "success" : "standard"}
+                      />
                       {isAttached && (
                         <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
                           <CheckCircleIcon className="h-5 w-5" /> Attached to
@@ -582,7 +579,7 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <aside className="bg-white dark:bg-gray-900/150 p-5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 space-y-6">
+            <aside className=" p-5 rounded-lg shadow-layout  space-y-6  ">
               <div>
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">
                   Quick notes
@@ -592,7 +589,7 @@ export default function AdminDashboard() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Private session notes..."
-                  className="w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-md  shadow-neumorphic p-3 text-sm focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </aside>

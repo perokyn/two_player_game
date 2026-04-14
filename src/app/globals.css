@@ -23,6 +23,23 @@
   --color-surface: #ffffff;
   --neumorphic-main: #b8b9be;
   --neumorphic-highlight: #ffffff;
+  /* --- Standard Disk --- */
+  --disk-shadow-main: #3f3e3e;
+  --disk-shadow-highlight: #ffffff;
+  --bump-from: #ffffff;
+  --bump-to: #bebfc2;
+
+  /* --- Success Disk (Green Theme) --- */
+  --success-bump-from: #34d399; /* emerald-400 */
+  --success-bump-to: #059669; /* emerald-600 */
+  --success-shadow-main: #064e3b;
+  --success-shadow-highlight: #6ee7b7;
+
+  /* --- Error Disk (Red Theme) --- */
+  --error-bump-from: #fb7185; /* rose-400 */
+  --error-bump-to: #e11d48; /* rose-600 */
+  --error-shadow-main: #4c0519;
+  --error-shadow-highlight: #fda4af;
 }
 
 /* Dark mode overrides */
@@ -48,6 +65,23 @@
   --color-bevelside: #313131;
   --neumorphic-main: #020617;
   --neumorphic-highlight: #1e293b;
+  /* --- Standard Disk Dark --- */
+  --disk-shadow-main: #000000;
+  --disk-shadow-highlight: #4f4f4f;
+  --bump-from: #7d7e80;
+  --bump-to: #0f172a;
+
+  /* --- Success Disk Dark --- */
+  --success-bump-from: #065f46;
+  --success-bump-to: #022c22;
+  --success-shadow-main: #000000;
+  --success-shadow-highlight: #065f46;
+
+  /* --- Error Disk Dark --- */
+  --error-bump-from: #9f1239;
+  --error-bump-to: #4c0519;
+  --error-shadow-main: #000000;
+  --error-shadow-highlight: #9f1239;
 }
 
 /* Define Dark Mode overrides using your existing data-theme attribute */
@@ -60,12 +94,48 @@
   --color-bevelsidelight: #dad9d9;
 
   /* Keep your other custom properties */
+  --background-image-bump: linear-gradient(
+    to bottom right,
+    var(--bump-from),
+    var(--bump-to)
+  );
   --shadow-neumorphic:
     inset 5px 5px 10px var(--neumorphic-main),
     inset -5px -5px 10px var(--neumorphic-highlight);
-  --shadow-subtle: 0 6px 18px rgba(15, 23, 42, 0.06);
-}
+  /* Base Utilities */
+  --background-image-bump: linear-gradient(
+    to bottom right,
+    var(--bump-from),
+    var(--bump-to)
+  );
+  --shadow-disk:
+    1px 2px 2px var(--disk-shadow-main),
+    -1px -1px 2px var(--disk-shadow-highlight);
 
+  /* Success Utilities */
+  --background-image-bump-success: linear-gradient(
+    to bottom right,
+    var(--success-bump-from),
+    var(--success-bump-to)
+  );
+  --shadow-disk-success:
+    1px 2px 2px var(--success-shadow-main),
+    -1px -1px 2px var(--success-shadow-highlight);
+
+  /* Error Utilities */
+  --background-image-bump-error: linear-gradient(
+    to bottom right,
+    var(--error-bump-from),
+    var(--error-bump-to)
+  );
+  --shadow-disk-error:
+    1px 2px 2px var(--error-shadow-main),
+    -1px -1px 2px var(--error-shadow-highlight);
+
+  --shadow-layout:
+    0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
+/* shadow-[inset_0_3px_5px_rgba(0,0,0,0.4)] for caved in button or circle*/
 body {
   background: var(--background);
   color: var(--foreground);

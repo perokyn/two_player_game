@@ -1,5 +1,6 @@
 import React from "react";
-
+import DiskInfo from "@/components/DiskInfo";
+import { KeyboardButton } from "@/components/KeyboardButton";
 interface SessionSetupProps {
   hasSession: boolean;
   createPass: (e?: React.FormEvent) => void;
@@ -26,22 +27,19 @@ export const SessionSetup: React.FC<SessionSetupProps> = ({
   ClipboardIcon,
 }) => {
   return (
-    <div className="p-5 bg-bevelside rounded-3xl">
+    // bg-bevelside rounded-3xl
+    <div className="p-5 ">
       <div
         className={`rounded-2xl bg-gray-200 
               shadow-neumorphic p-4 rounded-xl border-2 transition-colors ${hasSession ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10" : "border-indigo-100 bg-gray-50 dark:border-indigo-900/20 dark:bg-gray-200/10"}`}
       >
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span
-              className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${hasSession ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white"}`}
-            >
-              1
-            </span>
-            <h2 className="text-lg font-semibold ">
-              Step 1: Create or Enter Session
-            </h2>
-          </div>
+          <DiskInfo
+            hasSession={hasSession}
+            infoText="Session 1 Create or Enter Session"
+            sideText="1"
+            status={hasSession ? "success" : "standard"}
+          />
           {hasSession && (
             <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
               <CheckCircleIcon className="h-5 w-5" /> Session Active
@@ -58,15 +56,22 @@ export const SessionSetup: React.FC<SessionSetupProps> = ({
               value={sessionId}
               onChange={(e) => setSessionId(e.target.value)}
               placeholder="New session (auto)"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+              className="w-full shadow-neumorphic rounded-md     px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500  "
             />
           </div>
-          <button
+          <KeyboardButton
             type="submit"
             disabled={creating}
-            className="bg-gray-500 text-white font-bold py-2 px-4 rounded 
+            text1={passcode ? "Renew Session" : "Create Session"}
+            text2={passcode ? "Renew Session" : "Create Session"}
+            loading={creating}
+          />
+          {/* <button
+            type="submit"
+            disabled={creating}
+            className="bg-gray-400 text-black [text-shadow:0_1px_0_#e3e3e3] font-bold py-2 px-4 rounded-xl 
                border-b-4 border-gray-700 
-               hover:bg-blue-400 hover:border-gray-900 
+               hover:bg-blue-400 hover:border-gray-600 
                active:border-b-0 active:translate-y-[2px] transition-all disabled:opacity-50 transition text-sm font-medium"
           >
             {creating
@@ -74,7 +79,7 @@ export const SessionSetup: React.FC<SessionSetupProps> = ({
               : passcode
                 ? "Renew Session"
                 : "Create Session"}
-          </button>
+          </button> */}
         </form>
 
         {passcode && (
