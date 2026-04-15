@@ -19,9 +19,15 @@ type QuestionListProps = {
   initial?: Array<string | Question>;
   // onChange receives the full typed Question[] whenever the list changes
   onChange?: (questions: Question[]) => void;
+
+  showSaveModal?: (show: boolean) => void; // callback to control save modal visibility
 };
 
-export default function QuestionList({ initial, onChange }: QuestionListProps) {
+export default function QuestionList({
+  initial,
+  onChange,
+  showSaveModal,
+}: QuestionListProps) {
   // normalize the incoming initial value into Question[]
   const normalizeInitial = React.useCallback(
     (init?: Array<string | Question>): Question[] => {
@@ -213,6 +219,13 @@ export default function QuestionList({ initial, onChange }: QuestionListProps) {
         >
           <PlusIcon className="h-4 w-4" />
           Add question
+        </button>
+        <button
+          onClick={() => showSaveModal && showSaveModal(false)}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Save questions
         </button>
       </div>
     </div>

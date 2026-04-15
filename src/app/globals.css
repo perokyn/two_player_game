@@ -20,7 +20,7 @@
   --destructive: #ef4444;
   --constructive: #10b981;
   --color-brand: #3b82f6;
-  --color-surface: #ffffff;
+  --color-surface: #fcf8f8;
   --neumorphic-main: #b8b9be;
   --neumorphic-highlight: #ffffff;
   /* --- Standard Disk --- */
@@ -61,7 +61,7 @@
   --error-foreground: #fca5a5;
   --error-border: #991b1b;
   --color-brand: #60a5fa;
-  --color-surface: #c7c7c7;
+  --color-surface: #242424;
   --color-bevelside: #313131;
   --neumorphic-main: #020617;
   --neumorphic-highlight: #1e293b;

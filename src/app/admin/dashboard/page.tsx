@@ -18,6 +18,8 @@ import SunnyIcon from "@mui/icons-material/Sunny";
 import { Session } from "inspector/promises";
 import { SessionSetup } from "./SessionSetup";
 import DiskInfo from "@/components/DiskInfo";
+import CustomDropDown from "@/components/DorpDownMenu";
+import { KeyboardButton } from "@/components/KeyboardButton";
 
 /* keep PasscodeResponse type and JoinCurrentGameButton as before */
 type PasscodeResponse = {
@@ -477,44 +479,38 @@ export default function AdminDashboard() {
                             );
                             setIsAttached(false);
                           }}
+                          showSaveModal={() => setShowSaveModal(true)}
                         />
                       </div>
 
                       <div className="w-full md:w-72 space-y-4">
-                        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
-                            Load Saved Set
-                          </label>
-                          <div className="space-y-2">
-                            <select
-                              value={selectedSetId ?? ""}
-                              onChange={(e) =>
-                                setSelectedSetId(
-                                  e.target.value
-                                    ? Number(e.target.value)
-                                    : null,
-                                )
-                              }
-                              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
-                            >
-                              <option value="">-- Select --</option>
-                              {questionSets.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name} ({s.questionCount})
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              onClick={() =>
-                                selectedSetId && loadSetById(selectedSetId)
-                              }
-                              disabled={!selectedSetId || loadingLoadSet}
-                              className="w-full py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium transition shadow-sm"
-                            >
-                              {loadingLoadSet ? "Loading..." : "Load selected"}
-                            </button>
-                          </div>
-                        </div>
+                        <CustomDropDown
+                          label="Load Saved Set"
+                          options={questionSets}
+                          selectedValue={selectedSetId}
+                          onSelect={(val) =>
+                            setSelectedSetId(val ? Number(val) : null)
+                          }
+                          placeholder="-- Choose a Set --"
+                        />
+                        <KeyboardButton
+                          text1="Loading"
+                          text2="Load Selected Set"
+                          onClick={() =>
+                            selectedSetId && loadSetById(selectedSetId)
+                          }
+                          disabled={!selectedSetId || loadingLoadSet}
+                          fullWidth
+                        />
+                        {/* <button
+                          onClick={() =>
+                            selectedSetId && loadSetById(selectedSetId)
+                          }
+                          disabled={!selectedSetId || loadingLoadSet}
+                          className="w-full mt-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium transition shadow-sm"
+                        >
+                          {loadingLoadSet ? "Loading..." : "Load selected"}
+                        </button> */}
 
                         {!hasSession && (
                           <div className="text-xs text-amber-600 dark:text-amber-400 italic">

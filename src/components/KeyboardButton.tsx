@@ -24,7 +24,7 @@ export const KeyboardButton: React.FC<KeyboardButtonProps> = ({
     <button
       {...props}
       disabled={disabled || action}
-      className={`bg-gray-400 text-black [text-shadow:0_1px_0_#e3e3e3] font-bold py-2 px-4 rounded-xl 
+      className={`bg-gray-100 text-black [text-shadow:0_1px_0_#e3e3e3] font-bold py-2 px-4 rounded-xl 
                border-b-4 border-gray-700 
                hover:bg-blue-400 hover:border-gray-600 
                active:border-b-0 active:translate-y-[2px] transition-all disabled:opacity-50 transition text-sm font-medium ${
