@@ -8,6 +8,7 @@ interface KeyboardButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEleme
   text1: string;
   text2: string;
   fullWidth?: boolean;
+  icon?: React.ReactNode;
 }
 
 export const KeyboardButton: React.FC<KeyboardButtonProps> = ({
@@ -18,6 +19,7 @@ export const KeyboardButton: React.FC<KeyboardButtonProps> = ({
   fullWidth,
   className = "",
   disabled,
+  icon,
   ...props
 }) => {
   return (
@@ -31,6 +33,7 @@ export const KeyboardButton: React.FC<KeyboardButtonProps> = ({
                  fullWidth ? "w-full" : ""
                } ${className}`}
     >
+      {icon && <span className="mr-2">{icon}</span>}
       {loading ? "Loading..." : action ? text1 : text2}
     </button>
   );

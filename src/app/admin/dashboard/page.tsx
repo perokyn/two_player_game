@@ -414,7 +414,7 @@ export default function AdminDashboard() {
           <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 ">
             <div className="lg:col-span-3  p-6 rounded-lg shadow-layout  ">
               {selectedMenu === "questions" && (
-                <div className="space-y-8">
+                <div className="space-y-4">
                   {/* STEP 1: SESSION */}
                   <SessionSetup
                     hasSession={hasSession}
@@ -429,22 +429,23 @@ export default function AdminDashboard() {
                   />
 
                   {/* VISUAL BRIDGE */}
-                  <div className="flex justify-center relative z-10 shadow-neumorphic w-12 h-12 rounded-full    flex items-center ">
-                    <div
-                      className={`p-2 rounded-full  shadow-sm transition-all ${
-                        isAttached
-                          ? "bg-emerald-600 border-white "
-                          : hasSession && selectedSetId
-                            ? "bg-indigo-600 border-white  animate-pulse"
-                            : "bg-gray-200  "
-                      }`}
-                    >
-                      <LinkIcon
-                        className={`h-6 w-6 ${isAttached || (hasSession && selectedSetId) ? "text-white" : "text-gray-400 dark:text-gray-500"}`}
-                      />
+                  <div className=" flex justify-center">
+                    <div className="flex justify-center  shadow-neumorphic w-16 h-16 rounded-full    flex items-center ">
+                      <div
+                        className={`p-4 rounded-full  shadow-sm transition-all ${
+                          isAttached
+                            ? "bg-emerald-600 border-white "
+                            : hasSession && selectedSetId
+                              ? "bg-indigo-600 border-white  animate-pulse"
+                              : "bg-gray-200  "
+                        }`}
+                      >
+                        <LinkIcon
+                          className={`h-6 w-6 ${isAttached || (hasSession && selectedSetId) ? "text-white" : "text-gray-400 dark:text-gray-500"}`}
+                        />
+                      </div>
                     </div>
                   </div>
-
                   {/* STEP 2: QUESTIONS */}
                   <div
                     className={`p-4 shadow-neumorphic rounded-xl border-2 transition-colors ${isAttached ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10" : "border-indigo-100 bg-gray-50 dark:border-indigo-900/20 dark:bg-gray-200/10"}`}
@@ -502,61 +503,55 @@ export default function AdminDashboard() {
                           disabled={!selectedSetId || loadingLoadSet}
                           fullWidth
                         />
-                        {/* <button
-                          onClick={() =>
-                            selectedSetId && loadSetById(selectedSetId)
-                          }
-                          disabled={!selectedSetId || loadingLoadSet}
-                          className="w-full mt-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium transition shadow-sm"
-                        >
-                          {loadingLoadSet ? "Loading..." : "Load selected"}
-                        </button> */}
 
                         {!hasSession && (
                           <div className="text-xs text-amber-600 dark:text-amber-400 italic">
                             * Please complete Step 1 to enable attaching.
                           </div>
                         )}
-
-                        <button
+                        <KeyboardButton
                           onClick={handleAttachSet}
                           disabled={!selectedSetId || attaching || !hasSession}
                           className={`w-full py-3 rounded-md flex items-center justify-center gap-2 font-bold transition shadow-md ${
                             isAttached
-                              ? "bg-emerald-600 text-white cursor-default"
+                              ? "bg-green-400  cursor-default"
                               : "bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30"
                           }`}
-                        >
-                          {attaching
-                            ? "Syncing..."
-                            : isAttached
-                              ? "Successfully Synced"
-                              : "Attach to Session"}
-                          {!attaching && !isAttached && (
-                            <ArrowRightIcon className="h-4 w-4" />
-                          )}
-                          {isAttached && (
-                            <CheckCircleIcon className="h-5 w-5" />
-                          )}
-                        </button>
+                          text1={
+                            attaching
+                              ? "Syncing..."
+                              : isAttached
+                                ? "Successfully Synced"
+                                : "Attach to Session"
+                          }
+                          text2={
+                            attaching
+                              ? "Syncing..."
+                              : isAttached
+                                ? "Successfully Synced"
+                                : "Attach to Session"
+                          }
+                          icon={
+                            attaching ? undefined : isAttached ? (
+                              <CheckCircleIcon className="h-5 w-5" />
+                            ) : (
+                              <ArrowRightIcon className="h-4 w-4" />
+                            )
+                          }
+                        ></KeyboardButton>
                       </div>
                     </div>
                   </div>
 
                   {/* STEP 3: JOIN */}
-                  <div className="pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col items-start">
-                    <div className="flex mb-4">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${isAttached ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white"}`}
-                        >
-                          3
-                        </span>
-                        <h2 className="text-lg font-semibold ">
-                          Step 3: Join Current Game
-                        </h2>
-                      </div>
-                    </div>
+                  <div className="p-6 shadow-neumorphic rounded-xl flex flex-col items-start">
+                    <DiskInfo
+                      hasSession={hasSession}
+                      infoText="Step 3: Join Current Game"
+                      sideText="3"
+                      status={isAttached ? "success" : "standard"}
+                    />
+
                     <JoinCurrentGameButton isReady={isAttached} />
                     {message && (
                       <p className="mt-4 text-sm text-indigo-600 dark:text-indigo-400 font-medium">
