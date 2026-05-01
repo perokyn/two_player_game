@@ -162,12 +162,12 @@ export default function AdminLoginPage() {
               />
               <span className="ml-2">Remember me</span>
             </label>
-            <a
-              href="#"
-              className="text-sm text-indigo-600 hover:text-indigo-700"
+            <Link
+              href="/admin/resetpassword"
+              className="text-indigo-600 hover:text-indigo-900 transition-colors"
             >
               Forgot password?
-            </a>
+            </Link>
           </div>
 
           {error && (
