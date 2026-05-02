@@ -1,39 +1,40 @@
 @import "tailwindcss";
 
 :root {
+  /* Core UI Colors */
   --background: #ffffff;
-  --foreground: #111827;
-  --muted-bg: #f8fafc;
-  --muted-foreground: #6b7280;
-  --border-subtle: #e6e9f2;
-  --shadow-subtle: 0 6px 18px rgba(15, 23, 42, 0.06);
-  --accent-primary: #4f46e5;
+  --foreground: #0f172a; /* slate-900 */
+  --muted-bg: #f8fafc; /* slate-50 */
+  --muted-foreground: #64748b; /* slate-500 */
+  --border-subtle: #e2e8f0; /* slate-200 */
+  --shadow-subtle:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+
+  /* Accents */
+  --accent-primary: #4f46e5; /* indigo-600 */
   --accent-foreground: #ffffff;
-  --accent-soft-bg: #eef2ff;
-  --accent-soft-foreground: #3730a3;
-  --success-bg: #ecfeff;
-  --success-foreground: #065f46;
-  --success-border: #bbf7d0;
-  --error-bg: #fff1f2;
-  --error-foreground: #b91c1c;
-  --error-border: #fecaca;
-  --destructive: #ef4444;
-  --constructive: #10b981;
-  --color-brand: #3b82f6;
-  --color-surface: #fcf8f8;
-  --neumorphic-main: #b8b9be;
-  --neumorphic-highlight: #ffffff;
+  --accent-soft-bg: #e0e7ff; /* indigo-100 */
+  --accent-soft-foreground: #3730a3; /* indigo-800 */
+
+  /* Status Colors */
+  --success-bg: #ecfdf5; /* emerald-50 */
+  --success-foreground: #065f46; /* emerald-800 */
+  --success-border: #a7f3d0; /* emerald-200 */
+  --error-bg: #fff1f2; /* rose-50 */
+  --error-foreground: #9f1239; /* rose-800 */
+  --error-border: #fecdd3; /* rose-200 */
+
   /* --- Standard Disk --- */
-  --disk-shadow-main: #3f3e3e;
+  --disk-shadow-main: #94a3b8;
   --disk-shadow-highlight: #ffffff;
   --bump-from: #ffffff;
-  --bump-to: #bebfc2;
+  --bump-to: #f1f5f9;
 
   /* --- Success Disk (Green Theme) --- */
   --success-bump-from: #34d399; /* emerald-400 */
   --success-bump-to: #059669; /* emerald-600 */
   --success-shadow-main: #064e3b;
-  --success-shadow-highlight: #6ee7b7;
+  --success-shadow-highlight: #a7f3d0;
 
   /* --- Error Disk (Red Theme) --- */
   --error-bump-from: #fb7185; /* rose-400 */
@@ -44,75 +45,67 @@
 
 /* Dark mode overrides */
 [data-theme="dark"] {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  --muted-bg: #1e293b;
-  --muted-foreground: #94a3b8;
-  --border-subtle: #334155;
-  --shadow-subtle: 0 6px 18px rgba(0, 0, 0, 0.4);
-  --accent-primary: #6366f1;
+  --background: #030712; /* slate-950 */
+  --foreground: #f8fafc; /* slate-50 */
+  --muted-bg: #0f172a; /* slate-900 */
+  --muted-foreground: #94a3b8; /* slate-400 */
+  --border-subtle: #1e293b; /* slate-800 */
+  --shadow-subtle:
+    0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+
+  --accent-primary: #6366f1; /* indigo-500 */
   --accent-foreground: #ffffff;
-  --accent-soft-bg: #312e81;
-  --accent-soft-foreground: #e0e7ff;
-  --success-bg: #064e3b;
-  --success-foreground: #34d399;
-  --success-border: #065f46;
-  --error-bg: #7f1d1d;
-  --error-foreground: #fca5a5;
-  --error-border: #991b1b;
-  --color-brand: #60a5fa;
-  --color-surface: #242424;
-  --color-bevelside: #313131;
-  --neumorphic-main: #020617;
-  --neumorphic-highlight: #1e293b;
+  --accent-soft-bg: #1e1b4b; /* indigo-950 */
+  --accent-soft-foreground: #c7d2fe; /* indigo-200 */
+
+  --success-bg: #022c22; /* emerald-950 */
+  --success-foreground: #34d399; /* emerald-400 */
+  --success-border: #065f46; /* emerald-800 */
+
+  --error-bg: #4c0519; /* rose-950 */
+  --error-foreground: #fb7185; /* rose-400 */
+  --error-border: #881337; /* rose-900 */
+
   /* --- Standard Disk Dark --- */
   --disk-shadow-main: #000000;
-  --disk-shadow-highlight: #4f4f4f;
-  --bump-from: #7d7e80;
-  --bump-to: #0f172a;
+  --disk-shadow-highlight: #1e293b;
+  --bump-from: #1e293b;
+  --bump-to: #020617;
 
   /* --- Success Disk Dark --- */
-  --success-bump-from: #065f46;
+  --success-bump-from: #059669;
   --success-bump-to: #022c22;
   --success-shadow-main: #000000;
   --success-shadow-highlight: #065f46;
 
   /* --- Error Disk Dark --- */
-  --error-bump-from: #9f1239;
+  --error-bump-from: #be123c;
   --error-bump-to: #4c0519;
   --error-shadow-main: #000000;
-  --error-shadow-highlight: #9f1239;
+  --error-shadow-highlight: #881337;
 }
 
-/* Define Dark Mode overrides using your existing data-theme attribute */
-
 @theme {
-  /* Define the 'default' value directly here for Tailwind 4 */
-  --color-brand: #3b82f6;
-  --color-surface: #ffffff;
-  --color-bevelside: #dad9d9;
-  --color-bevelsidelight: #dad9d9;
+  --color-brand: var(--accent-primary);
+  --color-surface: var(--background);
+  --color-bevelside: var(--border-subtle);
+  --color-bevelsidelight: var(--muted-bg);
 
-  /* Keep your other custom properties */
+  /* Legacy Utilities mapped to clean variables */
   --background-image-bump: linear-gradient(
     to bottom right,
     var(--bump-from),
     var(--bump-to)
   );
   --shadow-neumorphic:
-    inset 5px 5px 10px var(--neumorphic-main),
-    inset -5px -5px 10px var(--neumorphic-highlight);
-  /* Base Utilities */
-  --background-image-bump: linear-gradient(
-    to bottom right,
-    var(--bump-from),
-    var(--bump-to)
-  );
+    inset 4px 4px 8px rgba(0, 0, 0, 0.04),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+
+  /* Disk Elements */
   --shadow-disk:
     1px 2px 2px var(--disk-shadow-main),
     -1px -1px 2px var(--disk-shadow-highlight);
 
-  /* Success Utilities */
   --background-image-bump-success: linear-gradient(
     to bottom right,
     var(--success-bump-from),
@@ -122,7 +115,6 @@
     1px 2px 2px var(--success-shadow-main),
     -1px -1px 2px var(--success-shadow-highlight);
 
-  /* Error Utilities */
   --background-image-bump-error: linear-gradient(
     to bottom right,
     var(--error-bump-from),
@@ -132,15 +124,30 @@
     1px 2px 2px var(--error-shadow-main),
     -1px -1px 2px var(--error-shadow-highlight);
 
-  --shadow-layout:
-    0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --shadow-layout: var(--shadow-subtle);
 }
-/* shadow-[inset_0_3px_5px_rgba(0,0,0,0.4)] for caved in button or circle*/
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-sans-serif, system-ui, sans-serif;
   transition:
-    background 0.2s ease,
-    color 0.2s ease;
+    background 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Custom sleek scrollbar for the dashboard */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
