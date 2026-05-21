@@ -211,24 +211,10 @@ export default function GamePage() {
                   cursor: "pointer",
                 }}
               >
-                Admin
+                Back to dashboard
               </button>
             </Link>
           )}
-          <Link href="/">
-            <button
-              style={{
-                padding: "8px 12px",
-                borderRadius: 8,
-                border: "1px solid var(--border-subtle)",
-                background: "var(--muted-bg)",
-                color: "var(--foreground)",
-                cursor: "pointer",
-              }}
-            >
-              Home
-            </button>
-          </Link>
         </div>
       </header>
 

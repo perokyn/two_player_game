@@ -45,6 +45,7 @@ export default function GameGrid({
 }: GameGridProps) {
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
   const [matched, setMatched] = useState<Set<number>>(new Set());
+  const [myMatches, setMyMatches] = useState<Set<number>>(new Set());
   const [cards, setCards] = useState<CardItem[]>([]);
   const [remoteFlipped, setRemoteFlipped] = useState<Set<string>>(new Set());
   const [activePlayer, setActivePlayer] = useState<string | null>(null);
@@ -80,6 +81,7 @@ export default function GameGrid({
       setCards(newCards);
       setFlipped(new Set());
       setMatched(new Set());
+      setMyMatches(new Set());
       lastProcessedQuestionsRef.current = questionsKey;
     }, 0);
     return () => clearTimeout(timeoutId);
@@ -225,6 +227,7 @@ export default function GameGrid({
 
       if (isMatch) {
         setMatched((prev) => new Set(prev).add(c1.questionId));
+        setMyMatches((prev) => new Set(prev).add(c1.questionId)); // Add point to local user
         setFlipped(new Set());
 
         fetch("/api/pusher/", {
@@ -296,13 +299,18 @@ export default function GameGrid({
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-4 text-center">
+      <div className="mb-4 text-center flex flex-col items-center">
         <h3 className="text-lg font-semibold text-[var(--foreground)]">
           Matching Game
         </h3>
-        <p className="text-sm font-bold text-[var(--foreground)]">
-          Matched: {matched.size} / {questions?.length ?? 0}
-        </p>
+        <div className="flex gap-4 mt-1">
+          <p className="text-sm font-bold text-[var(--foreground)]">
+            Total Matched: {matched.size} / {questions?.length ?? 0}
+          </p>
+          <p className="text-sm font-bold text-[var(--accent-primary)]">
+            My Matches: {myMatches.size}
+          </p>
+        </div>
         <div className="mt-2">
           {activePlayer ? (
             <p
