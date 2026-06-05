@@ -2,6 +2,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import TextAlign from "@tiptap/extension-text-align";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -11,6 +15,7 @@ import {
   ArrowPathIcon,
   DocumentDuplicateIcon,
 } from "@heroicons/react/24/outline";
+import CalendarScheduler from "./CalendarScheduler";
 
 type Note = {
   id: number;
@@ -34,23 +39,52 @@ export default function NotesWorkspace() {
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
 
-  // Form & Content states
+  // Form states
   const [clientName, setClientName] = useState<string>("");
   const [clientNumber, setClientNumber] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [content, setContent] = useState<string>("");
 
-  // Editor Ref
-  const editorRef = useRef<HTMLDivElement>(null);
-
   // UI status feedback
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [showExportDropdown, setShowExportDropdown] = useState<boolean>(false);
+
+  // 1. Initialize TipTap Editor
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+    ],
+    content: "",
+    onUpdate: ({ editor }) => {
+      setContent(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: "tiptap w-full min-h-full bg-[var(--background)] border border-[var(--border-subtle)] rounded-xl p-8 focus:ring-2 focus:ring-[var(--accent-primary)] outline-none prose max-w-none shadow-inner text-sm text-[var(--foreground)] leading-relaxed",
+        style: "font-family: Georgia, Cambria, 'Times New Roman', Times, serif;",
+      },
+    },
+  });
 
   // Load notes history
   useEffect(() => {
     fetchNotes();
   }, []);
+
+  // 2. Sync Editor Content when a note is loaded or a new note is started
+  const lastLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const currentKey = isCreatingNew ? "new" : selectedNoteId ? `note-${selectedNoteId}` : null;
+    if (currentKey !== lastLoadedRef.current) {
+      editor.commands.setContent(content || "<p></p>");
+      lastLoadedRef.current = currentKey;
+    }
+  }, [editor, selectedNoteId, isCreatingNew, content]);
 
   async function fetchNotes(selectIdAfterFetch?: number) {
     setLoading(true);
@@ -82,10 +116,6 @@ export default function NotesWorkspace() {
     setDate(noteDate.toISOString().split("T")[0]);
     setContent(note.content);
     
-    // Sync into the uncontrolled contentEditable editor
-    if (editorRef.current) {
-      editorRef.current.innerHTML = note.content;
-    }
     setMessage(null);
     setDeleteConfirmId(null);
     setShowExportDropdown(false);
@@ -99,28 +129,16 @@ export default function NotesWorkspace() {
     setDate(new Date().toISOString().split("T")[0]);
     setContent("");
     
-    if (editorRef.current) {
-      editorRef.current.innerHTML = "";
-    }
     setMessage(null);
     setDeleteConfirmId(null);
     setShowExportDropdown(false);
   }
 
-  // Formatting helper command
-  const execCmd = (command: string, value: string = "") => {
-    document.execCommand(command, false, value);
-    // sync content from editor back to state
-    if (editorRef.current) {
-      setContent(editorRef.current.innerHTML);
-    }
-  };
-
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
 
-    if (!clientName.trim() || !clientNumber.trim() || !date || !content.trim()) {
+    if (!clientName.trim() || !clientNumber.trim() || !date || !content.trim() || content === "<p></p>") {
       setMessage({ text: "Please fill out all fields and write notes.", type: "error" });
       return;
     }
@@ -180,7 +198,7 @@ export default function NotesWorkspace() {
         setClientNumber("");
         setDate("");
         setContent("");
-        if (editorRef.current) editorRef.current.innerHTML = "";
+        if (editor) editor.commands.setContent("<p></p>");
         await fetchNotes();
       } else {
         const d = await res.json();
@@ -196,7 +214,8 @@ export default function NotesWorkspace() {
 
   // Export handlers
   function exportAsText() {
-    const rawText = editorRef.current?.innerText || "";
+    if (!editor) return;
+    const rawText = editor.getText();
     const header = `Clinical Session Notes\n\nClient Name: ${clientName}\nClient ID/Number: ${clientNumber}\nSession Date: ${date}\n\n=========================\n\n`;
     const blob = new Blob([header + rawText], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -209,7 +228,8 @@ export default function NotesWorkspace() {
   }
 
   function exportAsWord() {
-    const rawHtml = editorRef.current?.innerHTML || "";
+    if (!editor) return;
+    const rawHtml = editor.getHTML();
     const docHtml = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
       <head>
@@ -249,7 +269,8 @@ export default function NotesWorkspace() {
   }
 
   function exportAsPDF() {
-    const rawHtml = editorRef.current?.innerHTML || "";
+    if (!editor) return;
+    const rawHtml = editor.getHTML();
     const formattedDate = new Date(date).toLocaleDateString(undefined, {
       month: "long",
       day: "numeric",
@@ -327,8 +348,15 @@ export default function NotesWorkspace() {
 
   const isActiveMode = selectedNoteId !== null || isCreatingNew;
 
+  // Don't render content until editor is fully initialized to avoid SSR mismatches
+  if (!editor) {
+    return null;
+  }
+
   return (
-    <div className="flex h-[calc(100vh-12rem)] bg-[var(--background)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden shadow-sm">
+    <div className="flex flex-col gap-6">
+      <CalendarScheduler onSelectClient={(name) => setSearchQuery(name)} />
+      <div className="flex h-[calc(100vh-12rem)] bg-[var(--background)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden shadow-sm">
       
       {/* LEFT COLUMN: Note History Sidebar */}
       <div className="w-full md:w-80 border-r border-[var(--border-subtle)] flex flex-col h-full bg-[var(--background)] shrink-0">
@@ -474,31 +502,43 @@ export default function NotesWorkspace() {
               </div>
             </div>
 
-            {/* WYSIWYG Editor Formatting Toolbar */}
+            {/* TipTap Editor Formatting Toolbar */}
             <div className="px-5 py-2 border-b border-[var(--border-subtle)] bg-[var(--muted-bg)] flex flex-wrap gap-1.5 items-center">
               
               {/* Headings */}
               <button
                 type="button"
-                onClick={() => execCmd("formatBlock", "H1")}
-                className="px-2 py-1 rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs font-bold hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                className={`px-2.5 py-1 rounded border text-xs font-bold transition-all ${
+                  editor.isActive("heading", { level: 1 })
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Heading 1"
               >
                 H1
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("formatBlock", "H2")}
-                className="px-2 py-1 rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs font-bold hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                className={`px-2.5 py-1 rounded border text-xs font-bold transition-all ${
+                  editor.isActive("heading", { level: 2 })
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Heading 2"
               >
                 H2
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("formatBlock", "P")}
-                className="px-2 py-1 rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
-                title="Paragraph"
+                onClick={() => editor.chain().focus().setParagraph().run()}
+                className={`px-2.5 py-1 rounded border text-xs transition-all ${
+                  editor.isActive("paragraph")
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
+                title="Paragraph / Normal Text"
               >
                 Text
               </button>
@@ -508,32 +548,48 @@ export default function NotesWorkspace() {
               {/* Inline Formatting */}
               <button
                 type="button"
-                onClick={() => execCmd("bold")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs font-bold hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs font-bold ${
+                  editor.isActive("bold")
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Bold (Ctrl+B)"
               >
                 B
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("italic")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs italic hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs italic ${
+                  editor.isActive("italic")
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Italic (Ctrl+I)"
               >
                 I
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("underline")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs underline hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs underline ${
+                  editor.isActive("underline")
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Underline (Ctrl+U)"
               >
                 U
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("strikeThrough")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs line-through hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs line-through ${
+                  editor.isActive("strike")
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Strikethrough"
               >
                 S
@@ -544,16 +600,24 @@ export default function NotesWorkspace() {
               {/* Lists */}
               <button
                 type="button"
-                onClick={() => execCmd("insertUnorderedList")}
-                className="px-2 py-0.5 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-[10px] font-bold hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                className={`px-2 h-7 flex items-center justify-center rounded border transition-all text-[10px] font-bold ${
+                  editor.isActive("bulletList")
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Bulleted List"
               >
                 • List
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("insertOrderedList")}
-                className="px-2 py-0.5 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-[10px] font-bold hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                className={`px-2 h-7 flex items-center justify-center rounded border transition-all text-[10px] font-bold ${
+                  editor.isActive("orderedList")
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Numbered List"
               >
                 1. List
@@ -564,32 +628,48 @@ export default function NotesWorkspace() {
               {/* Alignments */}
               <button
                 type="button"
-                onClick={() => execCmd("justifyLeft")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().setTextAlign("left").run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs ${
+                  editor.isActive({ textAlign: "left" })
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Align Left"
               >
                 ←
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("justifyCenter")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().setTextAlign("center").run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs ${
+                  editor.isActive({ textAlign: "center" })
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Align Center"
               >
                 ↔
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("justifyRight")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().setTextAlign("right").run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs ${
+                  editor.isActive({ textAlign: "right" })
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Align Right"
               >
                 →
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("justifyFull")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
+                onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+                className={`w-7 h-7 flex items-center justify-center rounded border transition-all text-xs ${
+                  editor.isActive({ textAlign: "justify" })
+                    ? "bg-[var(--accent-soft-bg)] border-[var(--accent-primary)] text-[var(--accent-soft-foreground)]"
+                    : "bg-[var(--background)] border-[var(--border-subtle)] text-[var(--foreground)] hover:bg-[var(--border-subtle)]"
+                }`}
                 title="Justify"
               >
                 ═
@@ -600,23 +680,25 @@ export default function NotesWorkspace() {
               {/* Actions */}
               <button
                 type="button"
-                onClick={() => execCmd("undo")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
+                disabled={!editor.can().chain().focus().undo().run()}
+                onClick={() => editor.chain().focus().undo().run()}
+                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Undo (Ctrl+Z)"
               >
                 ↶
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("redo")}
-                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
+                disabled={!editor.can().chain().focus().redo().run()}
+                onClick={() => editor.chain().focus().redo().run()}
+                className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Redo (Ctrl+Y)"
               >
                 ↷
               </button>
               <button
                 type="button"
-                onClick={() => execCmd("removeFormat")}
+                onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
                 className="w-7 h-7 flex items-center justify-center rounded bg-[var(--background)] border border-[var(--border-subtle)] text-xs hover:bg-[var(--border-subtle)] transition-colors"
                 title="Clear Formatting"
               >
@@ -627,16 +709,7 @@ export default function NotesWorkspace() {
 
             {/* Note Editor Area */}
             <div className="flex-1 p-6 bg-[var(--muted-bg)] overflow-y-auto">
-              <div
-                ref={editorRef}
-                contentEditable
-                onInput={(e) => setContent(e.currentTarget.innerHTML)}
-                onBlur={(e) => setContent(e.currentTarget.innerHTML)}
-                className="w-full min-h-full bg-[var(--background)] border border-[var(--border-subtle)] rounded-xl p-8 focus:ring-2 focus:ring-[var(--accent-primary)] outline-none prose max-w-none shadow-inner text-sm text-[var(--foreground)] leading-relaxed"
-                style={{
-                  fontFamily: "Georgia, Cambria, 'Times New Roman', Times, serif",
-                }}
-              />
+              <EditorContent editor={editor} />
             </div>
 
             {/* Footer controls & Feedback */}
@@ -752,5 +825,6 @@ export default function NotesWorkspace() {
 
       </div>
     </div>
+  </div>
   );
 }

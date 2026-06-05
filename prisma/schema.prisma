@@ -20,6 +20,7 @@ model User {
   players        Player[]
   createdPasses  Passcode[]    @relation("CreatorPasscodes")
   notes          Note[]
+  schedules      Schedule[]
 }
 
 model GameSession {
@@ -99,6 +100,19 @@ model Note {
   clientNumber String
   date         DateTime
   content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Schedule {
+  id           Int      @id @default(autoincrement())
+  counselorId  Int
+  counselor    User     @relation(fields: [counselorId], references: [id], onDelete: Cascade)
+  clientName   String
+  clientNumber String
+  startTime    DateTime
+  endTime      DateTime
+  comment      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
