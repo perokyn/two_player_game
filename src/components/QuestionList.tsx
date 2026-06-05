@@ -4,6 +4,8 @@
 import React from "react";
 import { PlusIcon, MinusIcon } from "@heroicons/react/24/outline";
 
+import { KeyboardButton } from "@/components/KeyboardButton";
+import { FileCopy, PlusOne } from "@mui/icons-material";
 /**
  * A single question object persisted in DB or passed around in the app.
  * `id` and `order` are optional because client-created questions won't have an id yet.
@@ -19,9 +21,15 @@ type QuestionListProps = {
   initial?: Array<string | Question>;
   // onChange receives the full typed Question[] whenever the list changes
   onChange?: (questions: Question[]) => void;
+
+  showSaveModal?: (show: boolean) => void; // callback to control save modal visibility
 };
 
-export default function QuestionList({ initial, onChange }: QuestionListProps) {
+export default function QuestionList({
+  initial,
+  onChange,
+  showSaveModal,
+}: QuestionListProps) {
   // normalize the incoming initial value into Question[]
   const normalizeInitial = React.useCallback(
     (init?: Array<string | Question>): Question[] => {
@@ -206,14 +214,22 @@ export default function QuestionList({ initial, onChange }: QuestionListProps) {
         ))}
       </div>
 
-      <div className="mt-4">
-        <button
+      <div className="mt- ">
+        <KeyboardButton
           onClick={append}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Add question
-        </button>
+          text1="Add question"
+          text2="Add question"
+          icon={<PlusOne className="h-4 w-4" />}
+        />
+
+        <KeyboardButton
+          onClick={() => showSaveModal && showSaveModal(true)}
+          className="inline-flex items-center gap-2 px-3 py-2  rounded-md bg-green-600 text-white hover:bg-green-700 ml-6"
+          text1="Save questions"
+          text2="Save questions"
+          icon={<FileCopy className="h-4 w-4 " />}
+        />
       </div>
     </div>
   );

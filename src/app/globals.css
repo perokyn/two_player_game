@@ -1,26 +1,153 @@
 @import "tailwindcss";
 
 :root {
+  /* Core UI Colors */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a; /* slate-900 */
+  --muted-bg: #f8fafc; /* slate-50 */
+  --muted-foreground: #64748b; /* slate-500 */
+  --border-subtle: #e2e8f0; /* slate-200 */
+  --shadow-subtle:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+
+  /* Accents */
+  --accent-primary: #4f46e5; /* indigo-600 */
+  --accent-foreground: #ffffff;
+  --accent-soft-bg: #e0e7ff; /* indigo-100 */
+  --accent-soft-foreground: #3730a3; /* indigo-800 */
+
+  /* Status Colors */
+  --success-bg: #ecfdf5; /* emerald-50 */
+  --success-foreground: #065f46; /* emerald-800 */
+  --success-border: #a7f3d0; /* emerald-200 */
+  --error-bg: #fff1f2; /* rose-50 */
+  --error-foreground: #9f1239; /* rose-800 */
+  --error-border: #fecdd3; /* rose-200 */
+
+  /* --- Standard Disk --- */
+  --disk-shadow-main: #94a3b8;
+  --disk-shadow-highlight: #ffffff;
+  --bump-from: #ffffff;
+  --bump-to: #f1f5f9;
+
+  /* --- Success Disk (Green Theme) --- */
+  --success-bump-from: #34d399; /* emerald-400 */
+  --success-bump-to: #059669; /* emerald-600 */
+  --success-shadow-main: #064e3b;
+  --success-shadow-highlight: #a7f3d0;
+
+  /* --- Error Disk (Red Theme) --- */
+  --error-bump-from: #fb7185; /* rose-400 */
+  --error-bump-to: #e11d48; /* rose-600 */
+  --error-shadow-main: #4c0519;
+  --error-shadow-highlight: #fda4af;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Dark mode overrides */
+[data-theme="dark"] {
+  --background: #030712; /* slate-950 */
+  --foreground: #f8fafc; /* slate-50 */
+  --muted-bg: #0f172a; /* slate-900 */
+  --muted-foreground: #94a3b8; /* slate-400 */
+  --border-subtle: #1e293b; /* slate-800 */
+  --shadow-subtle:
+    0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+
+  --accent-primary: #6366f1; /* indigo-500 */
+  --accent-foreground: #ffffff;
+  --accent-soft-bg: #1e1b4b; /* indigo-950 */
+  --accent-soft-foreground: #c7d2fe; /* indigo-200 */
+
+  --success-bg: #022c22; /* emerald-950 */
+  --success-foreground: #34d399; /* emerald-400 */
+  --success-border: #065f46; /* emerald-800 */
+
+  --error-bg: #4c0519; /* rose-950 */
+  --error-foreground: #fb7185; /* rose-400 */
+  --error-border: #881337; /* rose-900 */
+
+  /* --- Standard Disk Dark --- */
+  --disk-shadow-main: #000000;
+  --disk-shadow-highlight: #1e293b;
+  --bump-from: #1e293b;
+  --bump-to: #020617;
+
+  /* --- Success Disk Dark --- */
+  --success-bump-from: #059669;
+  --success-bump-to: #022c22;
+  --success-shadow-main: #000000;
+  --success-shadow-highlight: #065f46;
+
+  /* --- Error Disk Dark --- */
+  --error-bump-from: #be123c;
+  --error-bump-to: #4c0519;
+  --error-shadow-main: #000000;
+  --error-shadow-highlight: #881337;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-brand: var(--accent-primary);
+  --color-surface: var(--background);
+  --color-bevelside: var(--border-subtle);
+  --color-bevelsidelight: var(--muted-bg);
+
+  /* Legacy Utilities mapped to clean variables */
+  --background-image-bump: linear-gradient(
+    to bottom right,
+    var(--bump-from),
+    var(--bump-to)
+  );
+  --shadow-neumorphic:
+    inset 4px 4px 8px rgba(0, 0, 0, 0.04),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+
+  /* Disk Elements */
+  --shadow-disk:
+    1px 2px 2px var(--disk-shadow-main),
+    -1px -1px 2px var(--disk-shadow-highlight);
+
+  --background-image-bump-success: linear-gradient(
+    to bottom right,
+    var(--success-bump-from),
+    var(--success-bump-to)
+  );
+  --shadow-disk-success:
+    1px 2px 2px var(--success-shadow-main),
+    -1px -1px 2px var(--success-shadow-highlight);
+
+  --background-image-bump-error: linear-gradient(
+    to bottom right,
+    var(--error-bump-from),
+    var(--error-bump-to)
+  );
+  --shadow-disk-error:
+    1px 2px 2px var(--error-shadow-main),
+    -1px -1px 2px var(--error-shadow-highlight);
+
+  --shadow-layout: var(--shadow-subtle);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Custom sleek scrollbar for the dashboard */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }

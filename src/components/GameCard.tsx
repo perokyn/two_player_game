@@ -7,68 +7,58 @@ type GameCardProps = {
   text: string;
   imageUrl?: string;
   onClick?: () => void;
-  isFlipped?: boolean; // We will treat this as the primary source of truth
+  isFlipped?: boolean;
   id?: string | number;
   disabled?: boolean;
 };
-
-const PLACEHOLDER_COLORS = [
-  "bg-gradient-to-br from-blue-400 to-blue-600",
-  "bg-gradient-to-br from-purple-400 to-purple-600",
-  "bg-gradient-to-br from-pink-400 to-pink-600",
-  "bg-gradient-to-br from-green-400 to-green-600",
-  "bg-gradient-to-br from-yellow-400 to-yellow-600",
-  "bg-gradient-to-br from-indigo-400 to-indigo-600",
-  "bg-gradient-to-br from-red-400 to-red-600",
-  "bg-gradient-to-br from-teal-400 to-teal-600",
-];
 
 export default function GameCard({
   text,
   imageUrl,
   onClick,
-  isFlipped = false, // Default to false
+  isFlipped = false,
   id,
   disabled = false,
 }: GameCardProps) {
-  // Deterministic placeholder color based on ID
-  const [placeholderColor] = useState(() => {
-    if (id != null) {
-      const charCodeSum = String(id)
-        .split("")
-        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      return PLACEHOLDER_COLORS[charCodeSum % PLACEHOLDER_COLORS.length];
-    }
-    return PLACEHOLDER_COLORS[
-      Math.floor(Math.random() * PLACEHOLDER_COLORS.length)
+  // Explicitly typing the state to avoid 'any'
+  const [placeholderColor] = useState<string>(() => {
+    const PLACEHOLDER_COLORS: string[] = [
+      "bg-gradient-to-br from-blue-500 to-blue-700",
+      "bg-gradient-to-br from-purple-500 to-purple-700",
+      "bg-gradient-to-br from-indigo-500 to-indigo-700",
+      "bg-gradient-to-br from-teal-500 to-teal-700",
     ];
+    const charCodeSum: number = String(id ?? "")
+      .split("")
+      .reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+    return PLACEHOLDER_COLORS[charCodeSum % PLACEHOLDER_COLORS.length];
   });
 
-  const handleClick = () => {
-    // Only trigger if not disabled AND not already flipped
-    // (prevents double-clicking a flipped card to flip it back manually)
+  const handleCardClick = (): void => {
     if (!disabled && !isFlipped) {
       onClick?.();
     }
   };
 
   return (
-    <div className="w-full h-full" style={{ perspective: "1000px" }}>
+    <div
+      className={`relative w-full h-full transition-all duration-500 ease-in-out cursor-pointer ${
+        isFlipped ? "z-50" : "z-10"
+      }`}
+      style={{ perspective: "1000px" }}
+      onClick={handleCardClick}
+    >
       <div
-        className={`relative w-full h-full transition-transform duration-500 ease-in-out cursor-pointer ${
-          disabled ? "cursor-not-allowed" : ""
-        }`}
+        className="relative w-full h-full transition-transform duration-500"
         style={{
           transformStyle: "preserve-3d",
           transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          height: "100%",
         }}
-        onClick={handleClick}
       >
-        {/* Front Side - Hidden when flipped */}
+        {/* Front Side (The Closed Card) */}
         <div
-          className={`absolute inset-0 w-full h-full flex items-center justify-center rounded-lg shadow-md ${
-            disabled && !isFlipped ? "opacity-50" : ""
-          }`}
+          className="absolute inset-0 w-full h-full rounded-xl shadow-md overflow-hidden"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -77,30 +67,41 @@ export default function GameCard({
           {imageUrl ? (
             <img
               src={imageUrl}
-              alt="Card front"
-              className="w-full h-full object-cover rounded-lg"
+              alt="Card Front"
+              className="w-full h-full object-cover"
             />
           ) : (
             <div
-              className={`w-full h-full rounded-lg flex items-center justify-center text-white font-bold text-lg md:text-2xl ${placeholderColor}`}
+              className={`w-full h-full flex items-center justify-center text-white ${placeholderColor}`}
             >
-              <span className="text-center px-4">🎴</span>
+              <span className="text-3xl">🎴</span>
             </div>
           )}
         </div>
 
-        {/* Back Side - Shown when flipped */}
+        {/* Back Side (The Opened Card with Text) */}
         <div
-          className={`absolute inset-0 w-full h-full bg-indigo-700 rounded-lg shadow-lg p-4 flex items-center justify-center ${
-            disabled && isFlipped ? "ring-4 ring-green-400 ring-inset" : ""
-          }`}
+          className="w-full h-full rounded-xl shadow-2xl p-4 flex items-center justify-center border-2"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
+            // Theme variables used for background, text, and border
+            backgroundColor: "var(--muted-bg)",
+            color: "var(--foreground)",
+            borderColor:
+              disabled && isFlipped
+                ? "var(--constructive)"
+                : "var(--border-subtle)",
+            // Use relative positioning only when flipped to "push" the container height
+            position: isFlipped ? "relative" : "absolute",
+            top: 0,
+            left: 0,
+            transition:
+              "background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease",
           }}
         >
-          <p className="text-white font-semibold text-xs md:text-sm lg:text-base text-center leading-tight break-words">
+          <p className="text-center font-medium text-xs md:text-sm lg:text-base leading-tight break-words">
             {text}
           </p>
         </div>
