@@ -18,6 +18,8 @@ import { SessionSetup } from "./SessionSetup";
 import DiskInfo from "@/components/DiskInfo";
 import CustomDropDown from "@/components/DorpDownMenu";
 import { KeyboardButton } from "@/components/KeyboardButton";
+import ClientNotesWidget from "@/components/ClientNotesWidget";
+import NotesWorkspace from "@/components/NotesWorkspace";
 
 type PasscodeResponse = {
   id: number;
@@ -101,7 +103,6 @@ export default function AdminDashboard() {
   const [sessionId, setSessionId] = useState<string>("");
   const [passcode, setPasscode] = useState<PasscodeResponse | null>(null);
   const [message, setMessage] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
   const [creating, setCreating] = useState<boolean>(false);
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -390,8 +391,8 @@ export default function AdminDashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-6xl mx-auto grid grid-cols-1 xl:grid-cols-4 gap-8">
-            <div className="xl:col-span-3">
+          <div className={`mx-auto grid grid-cols-1 gap-8 ${selectedMenu === "notes" ? "max-w-7xl xl:grid-cols-4" : "max-w-6xl xl:grid-cols-4"}`}>
+            <div className={selectedMenu === "notes" ? "xl:col-span-4" : "xl:col-span-3"}>
               {selectedMenu === "questions" ? (
                 <div className="space-y-8">
                   {/* STEP 1: SESSION */}
@@ -555,6 +556,8 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+              ) : selectedMenu === "notes" ? (
+                <NotesWorkspace />
               ) : (
                 <div className="flex flex-col items-center justify-center h-96 bg-[var(--background)] rounded-2xl border border-[var(--border-subtle)] border-dashed text-[var(--muted-foreground)]">
                   <ClipboardIcon className="w-12 h-12 mb-4 opacity-50" />
@@ -566,18 +569,11 @@ export default function AdminDashboard() {
             </div>
 
             {/* Quick Notes Sidebar */}
-            <aside className="xl:col-span-1 h-fit bg-[var(--background)] rounded-2xl shadow-sm border border-[var(--border-subtle)] p-6">
-              <h3 className="text-xs font-bold text-[var(--muted-foreground)] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <ClipboardIcon className="w-4 h-4" /> Quick Notes
-              </h3>
-              <textarea
-                rows={12}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Jot down private session notes here..."
-                className="w-full resize-none bg-[var(--muted-bg)] border border-[var(--border-subtle)] rounded-xl p-4 text-sm text-[var(--foreground)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] transition-all placeholder-[var(--muted-foreground)]"
-              />
-            </aside>
+            {selectedMenu !== "notes" && (
+              <aside className="xl:col-span-1">
+                <ClientNotesWidget />
+              </aside>
+            )}
           </div>
         </div>
       </main>

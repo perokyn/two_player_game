@@ -19,6 +19,7 @@ model User {
   hostedSessions GameSession[] @relation("HostSessions")
   players        Player[]
   createdPasses  Passcode[]    @relation("CreatorPasscodes")
+  notes          Note[]
 }
 
 model GameSession {
@@ -88,4 +89,16 @@ model Question {
   questionSetId Int
   text          String
   order         Int
+}
+
+model Note {
+  id           Int      @id @default(autoincrement())
+  counselorId  Int
+  counselor    User     @relation(fields: [counselorId], references: [id], onDelete: Cascade)
+  clientName   String
+  clientNumber String
+  date         DateTime
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
