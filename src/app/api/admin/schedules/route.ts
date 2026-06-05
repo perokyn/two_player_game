@@ -145,3 +145,71 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const admin = getAuthenticatedAdmin(req);
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const counselorId = Number(admin.userId);
+    if (!counselorId || isNaN(counselorId)) {
+      return NextResponse.json({ error: "Invalid counselor session" }, { status: 400 });
+    }
+
+    const bodyText = await req.text();
+    let body: any = {};
+    try {
+      body = bodyText ? JSON.parse(bodyText) : {};
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    const { id, startTime, endTime } = body;
+
+    const scheduleId = Number(id);
+    if (!scheduleId || isNaN(scheduleId)) {
+      return NextResponse.json({ error: "Invalid or missing schedule ID" }, { status: 400 });
+    }
+
+    if (!startTime || !endTime) {
+      return NextResponse.json({ error: "Start and End times are required" }, { status: 400 });
+    }
+
+    const startParsed = new Date(startTime);
+    const endParsed = new Date(endTime);
+
+    if (isNaN(startParsed.getTime()) || isNaN(endParsed.getTime())) {
+      return NextResponse.json({ error: "Invalid Date format" }, { status: 400 });
+    }
+
+    const prisma = await getPrisma();
+
+    // Verify ownership
+    const existing = await prisma.schedule.findUnique({
+      where: { id: scheduleId },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Schedule not found" }, { status: 404 });
+    }
+
+    if (existing.counselorId !== counselorId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const updatedSchedule = await prisma.schedule.update({
+      where: { id: scheduleId },
+      data: {
+        startTime: startParsed,
+        endTime: endParsed,
+      },
+    });
+
+    return NextResponse.json({ ok: true, schedule: updatedSchedule });
+  } catch (err) {
+    console.error("PUT schedules error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}

@@ -1,7 +1,9 @@
 // src/components/ClientNotesWidget.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
 import {
   ClipboardDocumentIcon,
   PlusIcon,
@@ -40,6 +42,31 @@ export default function ClientNotesWidget() {
   // UI feedback states
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // 1. Initialize TipTap Editor
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: "",
+    onUpdate: ({ editor }) => {
+      setContent(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: "tiptap w-full min-h-[120px] max-h-[240px] overflow-y-auto bg-[var(--muted-bg)] border border-[var(--border-subtle)] rounded-lg p-3 text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] transition-all prose max-w-none shadow-inner text-left",
+      },
+    },
+  });
+
+  // 2. Sync Editor Content when a note is loaded or cleared
+  const lastLoadedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const currentKey = selectedNoteId ? `note-${selectedNoteId}` : "new";
+    if (currentKey !== lastLoadedRef.current) {
+      editor.commands.setContent(content || "<p></p>");
+      lastLoadedRef.current = currentKey;
+    }
+  }, [editor, selectedNoteId, content]);
 
   useEffect(() => {
     fetchNotes();
@@ -80,6 +107,7 @@ export default function ClientNotesWidget() {
     setClientNumber("");
     setDate(new Date().toISOString().split("T")[0]);
     setContent("");
+    if (editor) editor.commands.setContent("<p></p>");
     setMessage(null);
   }
 
@@ -87,7 +115,9 @@ export default function ClientNotesWidget() {
     e.preventDefault();
     setMessage(null);
 
-    if (!clientName.trim() || !clientNumber.trim() || !date || !content.trim()) {
+    const activeContent = editor ? editor.getHTML() : content;
+
+    if (!clientName.trim() || !clientNumber.trim() || !date || !activeContent.trim() || activeContent === "<p></p>") {
       setMessage({ text: "All fields are required.", type: "error" });
       return;
     }
@@ -98,8 +128,8 @@ export default function ClientNotesWidget() {
       const url = "/api/admin/notes";
       const method = isEditing ? "PUT" : "POST";
       const payload = isEditing
-        ? { id: selectedNoteId, clientName, clientNumber, date, content }
-        : { clientName, clientNumber, date, content };
+        ? { id: selectedNoteId, clientName, clientNumber, date, content: activeContent }
+        : { clientName, clientNumber, date, content: activeContent };
 
       const res = await fetch(url, {
         method,
@@ -229,15 +259,21 @@ export default function ClientNotesWidget() {
             <DocumentTextIcon className="w-3.5 h-3.5" />
             Session Notes
           </label>
-          <textarea
-            id="note-content"
-            rows={6}
-            placeholder="Document session details, progress, or diagnostic notes..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] p-3 text-sm text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] outline-none transition-all"
-            required
-          />
+          {editor ? (
+            <div className="w-full">
+              <EditorContent editor={editor} />
+            </div>
+          ) : (
+            <textarea
+              id="note-content"
+              rows={6}
+              placeholder="Document session details, progress, or diagnostic notes..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] p-3 text-sm text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] outline-none transition-all"
+              required
+            />
+          )}
         </div>
 
         {/* Status Messages */}
@@ -330,7 +366,7 @@ export default function ClientNotesWidget() {
                     </span>
                   </div>
                   <p className="line-clamp-2 leading-relaxed text-[11px] text-[var(--muted-foreground)]">
-                    {note.content}
+                    {note.content.replace(/<[^>]*>/g, "")}
                   </p>
                 </button>
               );

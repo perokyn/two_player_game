@@ -20,6 +20,7 @@ import CustomDropDown from "@/components/DorpDownMenu";
 import { KeyboardButton } from "@/components/KeyboardButton";
 import ClientNotesWidget from "@/components/ClientNotesWidget";
 import NotesWorkspace from "@/components/NotesWorkspace";
+import DragAndDropScheduler from "@/components/DragAndDropScheduler";
 
 type PasscodeResponse = {
   id: number;
@@ -391,8 +392,8 @@ export default function AdminDashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-8">
-          <div className={`mx-auto grid grid-cols-1 gap-8 ${selectedMenu === "notes" ? "max-w-7xl xl:grid-cols-4" : "max-w-6xl xl:grid-cols-4"}`}>
-            <div className={selectedMenu === "notes" ? "xl:col-span-4" : "xl:col-span-3"}>
+          <div className={`mx-auto grid grid-cols-1 gap-8 ${selectedMenu === "notes" || selectedMenu === "controls" ? "max-w-7xl xl:grid-cols-4" : "max-w-6xl xl:grid-cols-4"}`}>
+            <div className={selectedMenu === "notes" || selectedMenu === "controls" ? "xl:col-span-4" : "xl:col-span-3"}>
               {selectedMenu === "questions" ? (
                 <div className="space-y-8">
                   {/* STEP 1: SESSION */}
@@ -558,6 +559,8 @@ export default function AdminDashboard() {
                 </div>
               ) : selectedMenu === "notes" ? (
                 <NotesWorkspace />
+              ) : selectedMenu === "controls" ? (
+                <DragAndDropScheduler />
               ) : (
                 <div className="flex flex-col items-center justify-center h-96 bg-[var(--background)] rounded-2xl border border-[var(--border-subtle)] border-dashed text-[var(--muted-foreground)]">
                   <ClipboardIcon className="w-12 h-12 mb-4 opacity-50" />
@@ -569,7 +572,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Quick Notes Sidebar */}
-            {selectedMenu !== "notes" && (
+            {selectedMenu !== "notes" && selectedMenu !== "controls" && (
               <aside className="xl:col-span-1">
                 <ClientNotesWidget />
               </aside>

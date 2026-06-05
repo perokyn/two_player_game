@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import usePresencePusher from "./userPresencePusher";
 import Link from "next/link";
 import GameGrid from "./matching/GameGrid";
+import ClientNotesWidget from "@/components/ClientNotesWidget";
 
 type QuestionShape = {
   id: number;
@@ -25,6 +26,9 @@ export default function GamePage() {
   const [questions, setQuestions] = useState<QuestionShape[] | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+
+  // notes panel state
+  const [showNotesPanel, setShowNotesPanel] = useState<boolean>(false);
 
   // fetch user info
   useEffect(() => {
@@ -200,20 +204,39 @@ export default function GamePage() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {isAdmin && (
-            <Link href="/admin/dashboard">
+            <>
               <button
+                onClick={() => setShowNotesPanel((prev) => !prev)}
                 style={{
                   padding: "8px 12px",
                   borderRadius: 8,
-                  border: "1px solid var(--accent-primary)",
-                  background: "var(--accent-primary)",
-                  color: "var(--accent-foreground)",
+                  border: "1px solid var(--border-subtle)",
+                  background: "var(--muted-bg)",
+                  color: "var(--foreground)",
                   cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 14,
                 }}
               >
-                Back to dashboard
+                {showNotesPanel ? "Hide Notes" : "Show Notes"}
               </button>
-            </Link>
+              <Link href="/admin/dashboard">
+                <button
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--accent-primary)",
+                    background: "var(--accent-primary)",
+                    color: "var(--accent-foreground)",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  Back to dashboard
+                </button>
+              </Link>
+            </>
           )}
         </div>
       </header>
@@ -505,6 +528,33 @@ export default function GamePage() {
           </div>
         )}
       </section>
+
+      {/* Admin-only sliding Notes Panel */}
+      {isAdmin && (
+        <div
+          className={`fixed top-0 right-0 h-full w-[450px] max-w-[90vw] bg-[var(--background)] border-l border-[var(--border-subtle)] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out transform ${
+            showNotesPanel ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="flex items-center justify-between p-5 border-b border-[var(--border-subtle)] bg-[var(--background)]">
+            <span className="text-sm font-bold text-[var(--foreground)] tracking-wide">
+              In-Game Counselor Notes
+            </span>
+            <button
+              onClick={() => setShowNotesPanel(false)}
+              className="p-1.5 rounded-md hover:bg-[var(--muted-bg)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+              aria-label="Close notes panel"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5 bg-[var(--background)]">
+            <ClientNotesWidget />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
