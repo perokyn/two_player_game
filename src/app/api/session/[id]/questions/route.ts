@@ -53,7 +53,11 @@ export async function GET(
         }
       : null;
 
-    return NextResponse.json({ ok: true, questionSet: qs });
+    return NextResponse.json({
+      ok: true,
+      questionSet: qs,
+      cardCoverUrl: session.cardCoverUrl ?? null,
+    });
   } catch (err) {
     console.error("session questions error", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

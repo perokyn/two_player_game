@@ -14,6 +14,10 @@ import {
   InboxArrowDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  PlusIcon,
+  XMarkIcon,
+  HashtagIcon,
+  ChatBubbleBottomCenterTextIcon,
 } from "@heroicons/react/24/outline";
 
 export type WaitlistItem = {
@@ -31,6 +35,9 @@ export type Schedule = {
   startTime: string;
   endTime: string;
   comment: string | null;
+  meetingType?: string;
+  isRecurring?: boolean;
+  recurrenceGroup?: string | null;
 };
 
 export default function DragAndDropScheduler() {
@@ -46,6 +53,38 @@ export default function DragAndDropScheduler() {
   const [waitlist, setWaitlist] = useState<WaitlistItem[]>([]);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  // Modal & Form States
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [clientName, setClientName] = useState<string>("");
+  const [clientNumber, setClientNumber] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [startTime, setStartTime] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
+  const [comment, setComment] = useState<string>("");
+  const [meetingType, setMeetingType] = useState<"In Person" | "Remote">("In Person");
+  const [isRecurring, setIsRecurring] = useState<boolean>(false);
+  const [occurrences, setOccurrences] = useState<number>(4);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Conflict resolution wizard states
+  type ConflictItem = {
+    targetIndex: number;
+    targetStart: Date;
+    targetEnd: Date;
+    conflictingSchedule: Schedule;
+  };
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
+  const [currentConflictIdx, setCurrentConflictIdx] = useState<number>(0);
+  const [skippedOccurrences, setSkippedOccurrences] = useState<Set<number>>(new Set());
+
+  const [conflictDate, setConflictDate] = useState<string>("");
+  const [conflictStartTime, setConflictStartTime] = useState<string>("");
+  const [conflictEndTime, setConflictEndTime] = useState<string>("");
+  const [conflictError, setConflictError] = useState<string | null>(null);
+  const [resolvingConflict, setResolvingConflict] = useState<boolean>(false);
 
   // Client-side hydration guard
   useEffect(() => {
@@ -101,6 +140,260 @@ export default function DragAndDropScheduler() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Handle Event creation
+  async function handleAddSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!clientName.trim() || !clientNumber.trim() || !startDate || !startTime || !endDate || !endTime) {
+      setFormError("All fields except comments are required.");
+      return;
+    }
+
+    const startDateTime = new Date(`${startDate}T${startTime}`);
+    const endDateTime = new Date(`${endDate}T${endTime}`);
+
+    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+      setFormError("Invalid date or time format.");
+      return;
+    }
+
+    if (startDateTime.getTime() >= endDateTime.getTime()) {
+      setFormError("Start time must be before end time.");
+      return;
+    }
+
+    const durationMs = endDateTime.getTime() - startDateTime.getTime();
+    const count = isRecurring ? Math.min(Math.max(occurrences, 1), 12) : 1;
+    const targetOccurrences: { start: Date; end: Date; index: number }[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const occurrenceStart = new Date(startDateTime);
+      occurrenceStart.setDate(occurrenceStart.getDate() + i * 7);
+      const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
+      targetOccurrences.push({
+        start: occurrenceStart,
+        end: occurrenceEnd,
+        index: i,
+      });
+    }
+
+    // Detect conflicts
+    const detectedConflicts: ConflictItem[] = [];
+    targetOccurrences.forEach((target) => {
+      schedules.forEach((exist) => {
+        const existStart = new Date(exist.startTime);
+        const existEnd = new Date(exist.endTime);
+        if (target.start < existEnd && target.end > existStart) {
+          detectedConflicts.push({
+            targetIndex: target.index,
+            targetStart: target.start,
+            targetEnd: target.end,
+            conflictingSchedule: exist,
+          });
+        }
+      });
+    });
+
+    if (detectedConflicts.length > 0) {
+      setConflicts(detectedConflicts);
+      setCurrentConflictIdx(0);
+      setSkippedOccurrences(new Set());
+
+      // Initialize editing fields for the first conflict
+      const firstConflict = detectedConflicts[0];
+      const conflictSchedStart = new Date(firstConflict.conflictingSchedule.startTime);
+      const conflictSchedEnd = new Date(firstConflict.conflictingSchedule.endTime);
+
+      setConflictDate(conflictSchedStart.toISOString().split("T")[0]);
+      setConflictStartTime(conflictSchedStart.toTimeString().split(" ")[0].slice(0, 5));
+      setConflictEndTime(conflictSchedEnd.toTimeString().split(" ")[0].slice(0, 5));
+      setConflictError(null);
+      return;
+    }
+
+    await saveNewSchedules(targetOccurrences, new Set());
+  }
+
+  async function saveNewSchedules(
+    instances: { start: Date; end: Date; index: number }[],
+    skippedSet: Set<number>
+  ) {
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const recurrenceGroup = instances.length > 1 ? `group-${Date.now()}` : null;
+      const toSchedule = instances.filter((inst) => !skippedSet.has(inst.index));
+
+      if (toSchedule.length === 0) {
+        setShowAddModal(false);
+        resetForm();
+        return;
+      }
+
+      const promises = toSchedule.map((inst) =>
+        fetch("/api/admin/schedules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientName: clientName.trim(),
+            clientNumber: clientNumber.trim(),
+            startTime: inst.start.toISOString(),
+            endTime: inst.end.toISOString(),
+            meetingType,
+            isRecurring,
+            recurrenceGroup,
+            comment: comment.trim() || null,
+          }),
+        })
+      );
+
+      const responses = await Promise.all(promises);
+      for (const res of responses) {
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to schedule session");
+        }
+      }
+
+      setShowAddModal(false);
+      resetForm();
+      await fetchSchedules();
+    } catch (err: any) {
+      setFormError(err.message || "An error occurred.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRescheduleConflictingClient() {
+    setConflictError(null);
+    if (!conflictDate || !conflictStartTime || !conflictEndTime) {
+      setConflictError("Please provide rescheduled date and time.");
+      return;
+    }
+
+    const nextStart = new Date(`${conflictDate}T${conflictStartTime}`);
+    const nextEnd = new Date(`${conflictDate}T${conflictEndTime}`);
+
+    if (isNaN(nextStart.getTime()) || isNaN(nextEnd.getTime())) {
+      setConflictError("Invalid date or time format.");
+      return;
+    }
+    if (nextStart.getTime() >= nextEnd.getTime()) {
+      setConflictError("Start time must be before end time.");
+      return;
+    }
+
+    const currentConflict = conflicts[currentConflictIdx];
+    const conflictingId = currentConflict.conflictingSchedule.id;
+
+    setResolvingConflict(true);
+    try {
+      const res = await fetch("/api/admin/schedules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: conflictingId,
+          startTime: nextStart.toISOString(),
+          endTime: nextEnd.toISOString(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to reschedule conflicting client");
+      }
+
+      setSchedules((prev) =>
+        prev.map((s) => (s.id === conflictingId ? data.schedule : s))
+      );
+
+      advanceConflictWizard();
+    } catch (err: any) {
+      setConflictError(err.message || "An error occurred.");
+    } finally {
+      setResolvingConflict(false);
+    }
+  }
+
+  function handleSkipOccurrence() {
+    const currentConflict = conflicts[currentConflictIdx];
+    setSkippedOccurrences((prev) => {
+      const next = new Set(prev);
+      next.add(currentConflict.targetIndex);
+      return next;
+    });
+    advanceConflictWizard();
+  }
+
+  function handleForceOccurrence() {
+    advanceConflictWizard();
+  }
+
+  async function advanceConflictWizard() {
+    const nextIdx = currentConflictIdx + 1;
+    if (nextIdx < conflicts.length) {
+      setCurrentConflictIdx(nextIdx);
+      const nextConflict = conflicts[nextIdx];
+      const conflictSchedStart = new Date(nextConflict.conflictingSchedule.startTime);
+      const conflictSchedEnd = new Date(nextConflict.conflictingSchedule.endTime);
+
+      setConflictDate(conflictSchedStart.toISOString().split("T")[0]);
+      setConflictStartTime(conflictSchedStart.toTimeString().split(" ")[0].slice(0, 5));
+      setConflictEndTime(conflictSchedEnd.toTimeString().split(" ")[0].slice(0, 5));
+      setConflictError(null);
+    } else {
+      const startDateTime = new Date(`${startDate}T${startTime}`);
+      const endDateTime = new Date(`${endDate}T${endTime}`);
+      const durationMs = endDateTime.getTime() - startDateTime.getTime();
+      const count = isRecurring ? Math.min(Math.max(occurrences, 1), 12) : 1;
+      const targetOccurrences: { start: Date; end: Date; index: number }[] = [];
+
+      for (let i = 0; i < count; i++) {
+        const occurrenceStart = new Date(startDateTime);
+        occurrenceStart.setDate(occurrenceStart.getDate() + i * 7);
+        const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
+        targetOccurrences.push({
+          start: occurrenceStart,
+          end: occurrenceEnd,
+          index: i,
+        });
+      }
+
+      await saveNewSchedules(targetOccurrences, skippedOccurrences);
+      setConflicts([]);
+      setCurrentConflictIdx(0);
+    }
+  }
+
+  function resetForm() {
+    setClientName("");
+    setClientNumber("");
+    setStartDate("");
+    setStartTime("");
+    setEndDate("");
+    setEndTime("");
+    setComment("");
+    setMeetingType("In Person");
+    setIsRecurring(false);
+    setOccurrences(4);
+    setConflicts([]);
+    setCurrentConflictIdx(0);
+    setSkippedOccurrences(new Set());
+    setFormError(null);
+  }
+
+  function handleOpenAddModal(initialDate: Date = new Date()) {
+    resetForm();
+    const formattedDate = initialDate.toISOString().split("T")[0];
+    setStartDate(formattedDate);
+    setEndDate(formattedDate);
+    setStartTime("10:00");
+    setEndTime("11:00");
+    setShowAddModal(true);
   }
 
   // Helper: check if a date matches a target date string
@@ -511,6 +804,15 @@ export default function DragAndDropScheduler() {
               Today
             </button>
           </div>
+
+          {/* Quick Add Schedule Button */}
+          <button
+            onClick={() => handleOpenAddModal(new Date(selectedDate + "T00:00:00"))}
+            className="p-2.5 rounded-lg bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 transition-opacity shadow-sm flex items-center justify-center shrink-0"
+            title="Schedule New Session"
+          >
+            <PlusIcon className="w-4.5 h-4.5" />
+          </button>
         </div>
 
         {/* State Notification Message Banners */}
@@ -654,10 +956,19 @@ export default function DragAndDropScheduler() {
                                         }`}
                                       >
                                         <div className="space-y-0.5 text-left">
-                                          <span className="text-xs font-extrabold text-[var(--foreground)] flex items-center gap-1.5">
-                                            <UserIcon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
-                                            {sched.clientName}
-                                          </span>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-xs font-extrabold text-[var(--foreground)] flex items-center gap-1.5">
+                                              <UserIcon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+                                              {sched.clientName}
+                                            </span>
+                                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                                              sched.meetingType === "Remote"
+                                                ? "bg-sky-100 text-sky-800 dark:bg-sky-950/30 dark:text-sky-400 border border-sky-200 dark:border-sky-900/50"
+                                                : "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50"
+                                            }`}>
+                                              {sched.meetingType || "In Person"}
+                                            </span>
+                                          </div>
                                           <div className="text-[9px] text-[var(--muted-foreground)] flex gap-4">
                                             <span>ID: {sched.clientNumber}</span>
                                             {sched.comment && <span className="truncate max-w-[200px] italic">"{sched.comment}"</span>}
@@ -749,8 +1060,11 @@ export default function DragAndDropScheduler() {
                                                 snapshot.isDragging ? "opacity-75 shadow-md border-[var(--accent-primary)] scale-105" : ""
                                               }`}
                                             >
-                                              <div className="font-extrabold text-[10px] text-[var(--foreground)] truncate">
-                                                {sched.clientName}
+                                              <div className="font-extrabold text-[10px] text-[var(--foreground)] truncate flex justify-between items-center gap-1">
+                                                <span>{sched.clientName}</span>
+                                                <span className="text-[8px] font-normal opacity-85 shrink-0" title={sched.meetingType || "In Person"}>
+                                                  {sched.meetingType === "Remote" ? "💻" : "👥"}
+                                                </span>
                                               </div>
                                               <div className="text-[8px] text-[var(--muted-foreground)] truncate">
                                                 ID: {sched.clientNumber}
@@ -835,7 +1149,7 @@ export default function DragAndDropScheduler() {
                                           }`}
                                           title={`${sched.clientName} (${sTime})`}
                                         >
-                                          {sTime} {sched.clientName}
+                                          {sched.meetingType === "Remote" ? "💻" : "👥"} {sTime} {sched.clientName}
                                         </div>
                                       )}
                                     </Draggable>
@@ -858,6 +1172,324 @@ export default function DragAndDropScheduler() {
         </div>
 
       </div>
+
+      {/* POPUP MODAL: Schedule New Session */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-gray-900/60 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[var(--background)] rounded-2xl shadow-2xl p-6 border border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4 mb-4">
+              <h4 className="text-sm font-extrabold text-[var(--foreground)] uppercase tracking-wider">
+                {conflicts.length > 0 ? "Resolve Scheduling Conflicts" : "Schedule New Session"}
+              </h4>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddModal(false);
+                  resetForm();
+                }}
+                className="p-1 rounded-md text-[var(--muted-foreground)] hover:bg-[var(--muted-bg)]"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {conflicts.length > 0 ? (
+              // Conflict resolution UI
+              <div className="space-y-4 animate-in fade-in duration-200">
+                <div className="p-3 bg-[var(--error-bg)] border border-[var(--error-border)] rounded-xl flex items-start gap-2.5">
+                  <ExclamationCircleIcon className="w-5 h-5 text-[var(--error-foreground)] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-xs font-bold text-[var(--error-foreground)] block">
+                      Conflict {currentConflictIdx + 1} of {conflicts.length}
+                    </span>
+                    <p className="text-[11px] text-[var(--error-foreground)] opacity-90 mt-0.5 leading-relaxed">
+                      Occurrence {conflicts[currentConflictIdx].targetIndex + 1} on{" "}
+                      <strong>
+                        {conflicts[currentConflictIdx].targetStart.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </strong>{" "}
+                      overlaps with another scheduled appointment.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option to Edit Conflicting Schedule */}
+                <div className="space-y-3 pt-2 bg-[var(--background)] p-3 border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] font-extrabold text-[var(--foreground)] uppercase tracking-wider block border-b border-[var(--border-subtle)] pb-1.5 mb-1">
+                    Conflicts ({currentConflictIdx + 1}/{conflicts.length})
+                  </span>
+                  
+                  <div className="text-xs text-[var(--muted-foreground)] leading-relaxed pb-1.5 border-b border-[var(--border-subtle)]/60">
+                    Client Name: <strong className="text-[var(--foreground)] font-bold">{conflicts[currentConflictIdx].conflictingSchedule.clientName}</strong>
+                    {" / "}
+                    Conflict: <strong className="text-[var(--foreground)] font-semibold">{new Date(conflicts[currentConflictIdx].conflictingSchedule.startTime).toLocaleDateString(undefined, { month: "short", day: "numeric" })} at {new Date(conflicts[currentConflictIdx].conflictingSchedule.startTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} - {new Date(conflicts[currentConflictIdx].conflictingSchedule.endTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</strong>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[9px] text-[var(--muted-foreground)] font-semibold mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={conflictDate}
+                        onChange={(e) => setConflictDate(e.target.value)}
+                        className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-2 py-1 text-[11px] text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] text-[var(--muted-foreground)] font-semibold mb-1">Start Time</label>
+                      <input
+                        type="time"
+                        value={conflictStartTime}
+                        onChange={(e) => setConflictStartTime(e.target.value)}
+                        className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-2 py-1 text-[11px] text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] text-[var(--muted-foreground)] font-semibold mb-1">End Time</label>
+                      <input
+                        type="time"
+                        value={conflictEndTime}
+                        onChange={(e) => setConflictEndTime(e.target.value)}
+                        className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-2 py-1 text-[11px] text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+                      />
+                    </div>
+                  </div>
+                  {conflictError && (
+                    <p className="text-[10px] text-[var(--error-foreground)] bg-[var(--error-bg)] p-2 rounded-lg font-medium border border-[var(--error-border)]">
+                      {conflictError}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={resolvingConflict}
+                    onClick={handleRescheduleConflictingClient}
+                    className="w-full py-2 rounded-lg bg-[var(--accent-primary)] text-[var(--accent-foreground)] font-semibold text-xs hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  >
+                    {resolvingConflict ? "Saving..." : "Save & Reschedule Conflicting Client"}
+                  </button>
+                </div>
+
+                <div className="border-t border-[var(--border-subtle)] pt-4 space-y-2">
+                  <span className="text-[10px] font-extrabold text-[var(--muted-foreground)] uppercase tracking-wider block">
+                    Option 2: Alternative Actions
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSkipOccurrence}
+                      className="flex-1 py-2 rounded-lg border border-[var(--border-subtle)] hover:bg-[var(--muted-bg)] font-semibold text-xs text-[var(--foreground)] transition-colors"
+                    >
+                      Skip This Occurrence
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleForceOccurrence}
+                      className="flex-1 py-2 rounded-lg border border-[var(--border-subtle)] hover:bg-[var(--muted-bg)] font-semibold text-xs text-[var(--foreground)] transition-colors"
+                    >
+                      Double-book (Force)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-start pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConflicts([]);
+                      setShowAddModal(false);
+                      resetForm();
+                    }}
+                    className="text-xs text-[var(--muted-foreground)] hover:underline"
+                  >
+                    Cancel Scheduling Entirely
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAddSchedule} className="space-y-4 animate-in fade-in duration-200">
+                {/* Client Name */}
+                <div>
+                  <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <UserIcon className="w-3.5 h-3.5" /> Client Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. John Doe"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Client ID */}
+                <div>
+                  <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <HashtagIcon className="w-3.5 h-3.5" /> Client ID / Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. C-104"
+                    value={clientNumber}
+                    onChange={(e) => setClientNumber(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Meeting Type & Recurrence */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5">
+                      Meeting Type
+                    </label>
+                    <select
+                      value={meetingType}
+                      onChange={(e) => setMeetingType(e.target.value as "In Person" | "Remote")}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                    >
+                      <option value="In Person">In Person</option>
+                      <option value="Remote">Remote</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5">
+                      Recurrence
+                    </label>
+                    <select
+                      value={isRecurring ? "weekly" : "none"}
+                      onChange={(e) => setIsRecurring(e.target.value === "weekly")}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                    >
+                      <option value="none">None</option>
+                      <option value="weekly">Weekly Client</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Recurrence Occurrences */}
+                {isRecurring && (
+                  <div className="animate-in fade-in duration-200">
+                    <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5">
+                      Number of Weeks (1 to 12)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={occurrences}
+                      onChange={(e) => setOccurrences(Number(e.target.value))}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                      required
+                    />
+                  </div>
+                )}
+
+                {/* Date & Time selectors */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        if (!endDate) setEndDate(e.target.value);
+                      }}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5">
+                      Start Time
+                    </label>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5">
+                      End Time
+                    </label>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] px-3 py-2 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Comment field */}
+                <div>
+                  <label className="block text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <ChatBubbleBottomCenterTextIcon className="w-3.5 h-3.5" /> Comments
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Clinical notes focus, session goal..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    className="w-full resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--muted-bg)] p-3 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:ring-1 focus:ring-[var(--accent-primary)] outline-none transition-all"
+                  />
+                </div>
+
+                {formError && (
+                  <div className="text-xs text-[var(--error-foreground)] bg-[var(--error-bg)] border border-[var(--error-border)] p-3 rounded-lg font-medium">
+                    {formError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-[var(--border-subtle)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      resetForm();
+                    }}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold text-[var(--muted-foreground)] hover:bg-[var(--muted-bg)] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 font-bold text-xs"
+                  >
+                    {submitting ? "Scheduling..." : "Schedule Session"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
     </DragDropContext>
   );
 }

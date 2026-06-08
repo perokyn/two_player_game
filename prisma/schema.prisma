@@ -13,6 +13,7 @@ model User {
   name      String?
   password  String
   role      String   @default("user") // "admin" or "user"
+  cardCoverUrl String?
   createdAt DateTime @default(now())
 
   // relations
@@ -27,6 +28,7 @@ model GameSession {
   id        Int      @id @default(autoincrement())
   code      String?  @unique
   title     String?
+  cardCoverUrl String?
   createdAt DateTime @default(now())
 
   hostUserId Int?
@@ -112,6 +114,9 @@ model Schedule {
   clientNumber String
   startTime    DateTime
   endTime      DateTime
+  meetingType  String   @default("In Person")
+  isRecurring  Boolean  @default(false)
+  recurrenceGroup String?
   comment      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

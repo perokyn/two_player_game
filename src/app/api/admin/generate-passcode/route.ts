@@ -61,29 +61,43 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // create session with or without attached question set (explicit branches to satisfy TypeScript)
-    let newSession;
-    if (questionSetId !== undefined) {
-      newSession = await prisma.gameSession.create({
-        data: {
-          questionSet: { connect: { id: questionSetId } },
-        },
-      });
-    } else {
-      newSession = await prisma.gameSession.create({
-        data: {},
-      });
-    }
-
-    const code = makeCode(6);
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
-
     // ensure createdBy is a number | undefined
     const adminId =
       adminPayload &&
       typeof (adminPayload as { userId?: unknown }).userId === "number"
         ? (adminPayload as { userId: number }).userId
         : undefined;
+
+    let defaultCardCoverUrl: string | null = null;
+    if (typeof adminId === "number") {
+      const adminUser = await prisma.user.findUnique({
+        where: { id: adminId },
+        select: { cardCoverUrl: true },
+      });
+      if (adminUser) {
+        defaultCardCoverUrl = adminUser.cardCoverUrl;
+      }
+    }
+
+    // create session with or without attached question set (explicit branches to satisfy TypeScript)
+    let newSession;
+    if (questionSetId !== undefined) {
+      newSession = await prisma.gameSession.create({
+        data: {
+          questionSet: { connect: { id: questionSetId } },
+          cardCoverUrl: defaultCardCoverUrl,
+        },
+      });
+    } else {
+      newSession = await prisma.gameSession.create({
+        data: {
+          cardCoverUrl: defaultCardCoverUrl,
+        },
+      });
+    }
+
+    const code = makeCode(6);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
 
     const passcode = await prisma.passcode.create({
       data: {

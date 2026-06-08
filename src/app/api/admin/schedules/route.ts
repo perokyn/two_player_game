@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const { clientName, clientNumber, startTime, endTime, comment } = body;
+    const { clientName, clientNumber, startTime, endTime, comment, meetingType, isRecurring, recurrenceGroup } = body;
 
     if (!clientName || typeof clientName !== "string" || !clientName.trim()) {
       return NextResponse.json({ error: "Client Name is required" }, { status: 400 });
@@ -89,6 +89,9 @@ export async function POST(req: NextRequest) {
         clientNumber: clientNumber.trim(),
         startTime: startParsed,
         endTime: endParsed,
+        meetingType: (meetingType && typeof meetingType === "string") ? meetingType.trim() : "In Person",
+        isRecurring: typeof isRecurring === "boolean" ? isRecurring : false,
+        recurrenceGroup: (recurrenceGroup && typeof recurrenceGroup === "string") ? recurrenceGroup.trim() : null,
         comment: comment ? comment.trim() : null,
       },
     });
@@ -166,22 +169,31 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const { id, startTime, endTime } = body;
+    const { id, startTime, endTime, clientName, clientNumber, comment, meetingType, isRecurring, recurrenceGroup } = body;
 
     const scheduleId = Number(id);
     if (!scheduleId || isNaN(scheduleId)) {
       return NextResponse.json({ error: "Invalid or missing schedule ID" }, { status: 400 });
     }
 
-    if (!startTime || !endTime) {
-      return NextResponse.json({ error: "Start and End times are required" }, { status: 400 });
+    let startParsed: Date | undefined;
+    let endParsed: Date | undefined;
+
+    if (startTime) {
+      startParsed = new Date(startTime);
+      if (isNaN(startParsed.getTime())) {
+        return NextResponse.json({ error: "Invalid Start Date format" }, { status: 400 });
+      }
+    }
+    if (endTime) {
+      endParsed = new Date(endTime);
+      if (isNaN(endParsed.getTime())) {
+        return NextResponse.json({ error: "Invalid End Date format" }, { status: 400 });
+      }
     }
 
-    const startParsed = new Date(startTime);
-    const endParsed = new Date(endTime);
-
-    if (isNaN(startParsed.getTime()) || isNaN(endParsed.getTime())) {
-      return NextResponse.json({ error: "Invalid Date format" }, { status: 400 });
+    if (startParsed && endParsed && startParsed.getTime() >= endParsed.getTime()) {
+      return NextResponse.json({ error: "Start time must be before End time" }, { status: 400 });
     }
 
     const prisma = await getPrisma();
@@ -202,8 +214,14 @@ export async function PUT(req: NextRequest) {
     const updatedSchedule = await prisma.schedule.update({
       where: { id: scheduleId },
       data: {
-        startTime: startParsed,
-        endTime: endParsed,
+        ...(startParsed && { startTime: startParsed }),
+        ...(endParsed && { endTime: endParsed }),
+        ...(clientName && typeof clientName === "string" && { clientName: clientName.trim() }),
+        ...(clientNumber && typeof clientNumber === "string" && { clientNumber: clientNumber.trim() }),
+        ...(comment !== undefined && { comment: comment ? comment.trim() : null }),
+        ...(meetingType && typeof meetingType === "string" && { meetingType: meetingType.trim() }),
+        ...(isRecurring !== undefined && { isRecurring: typeof isRecurring === "boolean" ? isRecurring : false }),
+        ...(recurrenceGroup !== undefined && { recurrenceGroup: recurrenceGroup ? recurrenceGroup.trim() : null }),
       },
     });
 

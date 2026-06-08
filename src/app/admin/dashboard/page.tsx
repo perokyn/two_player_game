@@ -21,6 +21,7 @@ import { KeyboardButton } from "@/components/KeyboardButton";
 import ClientNotesWidget from "@/components/ClientNotesWidget";
 import NotesWorkspace from "@/components/NotesWorkspace";
 import DragAndDropScheduler from "@/components/DragAndDropScheduler";
+import SettingsWorkspace from "@/components/SettingsWorkspace";
 
 type PasscodeResponse = {
   id: number;
@@ -81,11 +82,10 @@ function JoinCurrentGameButton({ isReady }: JoinCurrentGameButtonProps) {
       <button
         onClick={handleJoin}
         disabled={loading || !isReady}
-        className={`w-full md:w-auto inline-flex justify-center items-center gap-2 px-8 py-3 rounded-lg shadow-sm transition-all font-semibold text-sm ${
-          isReady
+        className={`w-full md:w-auto inline-flex justify-center items-center gap-2 px-8 py-3 rounded-lg shadow-sm transition-all font-semibold text-sm ${isReady
             ? "bg-[var(--accent-primary)] hover:opacity-90 text-[var(--accent-foreground)] shadow-md hover:shadow-lg"
             : "bg-[var(--muted-bg)] text-[var(--muted-foreground)] cursor-not-allowed border border-[var(--border-subtle)]"
-        }`}
+          }`}
       >
         {loading ? "Joining..." : "Step 3: Join and Play"}
         {!loading && isReady && <ArrowRightIcon className="w-4 h-4" />}
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   const [selectedMenu, setSelectedMenu] = useState<
-    "dashboard" | "generate" | "controls" | "questions" | "notes" | "settings"
+    "dashboard" | "generate" | "Schedule" | "questions" | "notes" | "settings"
   >("questions");
 
   const [liveQuestions, setLiveQuestions] = useState<string[]>([]);
@@ -183,8 +183,8 @@ export default function AdminDashboard() {
       const setObj = data.set;
       const questions: string[] = Array.isArray(setObj?.questions)
         ? [...setObj.questions]
-            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-            .map((q) => q.text ?? "")
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .map((q) => q.text ?? "")
         : [];
       setLiveQuestions(questions);
       setSelectedSetId(id);
@@ -350,10 +350,10 @@ export default function AdminDashboard() {
             active={selectedMenu === "questions"}
           />
           <SidebarButton
-            label="Controls"
-            onClick={() => setSelectedMenu("controls")}
+            label="Schedule"
+            onClick={() => setSelectedMenu("Schedule")}
             open={sidebarOpen}
-            active={selectedMenu === "controls"}
+            active={selectedMenu === "Schedule"}
           />
           <SidebarButton
             label="Notes"
@@ -392,8 +392,8 @@ export default function AdminDashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-8">
-          <div className={`mx-auto grid grid-cols-1 gap-8 ${selectedMenu === "notes" || selectedMenu === "controls" ? "max-w-7xl xl:grid-cols-4" : "max-w-6xl xl:grid-cols-4"}`}>
-            <div className={selectedMenu === "notes" || selectedMenu === "controls" ? "xl:col-span-4" : "xl:col-span-3"}>
+          <div className={`mx-auto grid grid-cols-1 gap-8 ${selectedMenu === "notes" || selectedMenu === "Schedule" ? "max-w-7xl xl:grid-cols-4" : "max-w-6xl xl:grid-cols-4"}`}>
+            <div className={selectedMenu === "notes" || selectedMenu === "Schedule" ? "xl:col-span-4" : "xl:col-span-3"}>
               {selectedMenu === "questions" ? (
                 <div className="space-y-8">
                   {/* STEP 1: SESSION */}
@@ -416,13 +416,12 @@ export default function AdminDashboard() {
                   {/* VISUAL BRIDGE */}
                   <div className="flex justify-center -my-4 relative z-10">
                     <div
-                      className={`flex items-center justify-center w-14 h-14 rounded-full border-4 border-[var(--muted-bg)] transition-colors duration-500 ${
-                        isAttached
+                      className={`flex items-center justify-center w-14 h-14 rounded-full border-4 border-[var(--muted-bg)] transition-colors duration-500 ${isAttached
                           ? "bg-[var(--success-foreground)]"
                           : hasSession && selectedSetId
                             ? "bg-[var(--accent-primary)] animate-pulse"
                             : "bg-[var(--border-subtle)]"
-                      }`}
+                        }`}
                     >
                       <LinkIcon
                         className={`h-6 w-6 ${isAttached || (hasSession && selectedSetId) ? "text-[var(--accent-foreground)]" : "text-[var(--muted-foreground)]"}`}
@@ -432,11 +431,10 @@ export default function AdminDashboard() {
 
                   {/* STEP 2: QUESTIONS */}
                   <div
-                    className={`rounded-2xl border-2 transition-all duration-500 overflow-hidden ${
-                      isAttached
+                    className={`rounded-2xl border-2 transition-all duration-500 overflow-hidden ${isAttached
                         ? "border-[var(--success-border)] bg-[var(--success-bg)]"
                         : "border-[var(--border-subtle)] bg-[var(--background)] shadow-sm"
-                    }`}
+                      }`}
                   >
                     <div className="p-6 md:p-8">
                       <div className="flex items-center justify-between mb-8 pb-4 border-b border-[var(--border-subtle)]">
@@ -507,11 +505,10 @@ export default function AdminDashboard() {
                             disabled={
                               !selectedSetId || attaching || !hasSession
                             }
-                            className={`w-full py-3.5 rounded-lg flex items-center justify-center gap-2 font-bold transition-all ${
-                              isAttached
+                            className={`w-full py-3.5 rounded-lg flex items-center justify-center gap-2 font-bold transition-all ${isAttached
                                 ? "bg-[var(--success-foreground)] text-[var(--accent-foreground)] cursor-default"
                                 : "bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 disabled:opacity-50 shadow-md"
-                            }`}
+                              }`}
                             text1={
                               attaching
                                 ? "Syncing..."
@@ -559,8 +556,10 @@ export default function AdminDashboard() {
                 </div>
               ) : selectedMenu === "notes" ? (
                 <NotesWorkspace />
-              ) : selectedMenu === "controls" ? (
+              ) : selectedMenu === "Schedule" ? (
                 <DragAndDropScheduler />
+              ) : selectedMenu === "settings" ? (
+                <SettingsWorkspace sessionId={targetSessionId} />
               ) : (
                 <div className="flex flex-col items-center justify-center h-96 bg-[var(--background)] rounded-2xl border border-[var(--border-subtle)] border-dashed text-[var(--muted-foreground)]">
                   <ClipboardIcon className="w-12 h-12 mb-4 opacity-50" />
@@ -572,7 +571,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Quick Notes Sidebar */}
-            {selectedMenu !== "notes" && selectedMenu !== "controls" && (
+            {selectedMenu !== "notes" && selectedMenu !== "Schedule" && (
               <aside className="xl:col-span-1">
                 <ClientNotesWidget />
               </aside>
@@ -643,20 +642,17 @@ function SidebarButton({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
-        open ? "justify-start" : "justify-center"
-      } ${
-        active
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${open ? "justify-start" : "justify-center"
+        } ${active
           ? "bg-[var(--accent-soft-bg)] text-[var(--accent-primary)]"
           : "text-[var(--muted-foreground)] hover:bg-[var(--muted-bg)]"
-      }`}
+        }`}
     >
       <div
-        className={`flex items-center justify-center w-8 h-8 rounded-md text-sm font-bold ${
-          active
+        className={`flex items-center justify-center w-8 h-8 rounded-md text-sm font-bold ${active
             ? "bg-[var(--accent-soft-bg)] text-[var(--accent-primary)]"
             : "bg-[var(--muted-bg)] text-[var(--muted-foreground)] group-hover:bg-[var(--border-subtle)]"
-        }`}
+          }`}
       >
         {IconText}
       </div>
@@ -775,7 +771,7 @@ function SidebarButton({
 //   const [theme, setTheme] = useState<"light" | "dark">("light");
 
 //   const [selectedMenu, setSelectedMenu] = useState<
-//     "dashboard" | "generate" | "controls" | "questions" | "notes" | "settings"
+//     "dashboard" | "generate" | "Schedule" | "questions" | "notes" | "settings"
 //   >("generate");
 
 //   const [liveQuestions, setLiveQuestions] = useState<string[]>([]);
@@ -1018,10 +1014,10 @@ function SidebarButton({
 //                 active={selectedMenu === "questions"}
 //               />
 //               <SidebarButton
-//                 label="Controls"
-//                 onClick={() => setSelectedMenu("controls")}
+//                 label="Schedule"
+//                 onClick={() => setSelectedMenu("Schedule")}
 //                 open={sidebarOpen}
-//                 active={selectedMenu === "controls"}
+//                 active={selectedMenu === "Schedule"}
 //               />
 //               <SidebarButton
 //                 label="Notes"

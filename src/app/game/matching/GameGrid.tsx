@@ -35,6 +35,7 @@ type GameGridProps = {
   sessionId: number | null;
   playerName: string | null;
   isLoading?: boolean;
+  cardCoverUrl?: string | null;
 };
 
 export default function GameGrid({
@@ -42,6 +43,7 @@ export default function GameGrid({
   sessionId,
   playerName,
   isLoading = false,
+  cardCoverUrl = null,
 }: GameGridProps) {
   const [flipped, setFlipped] = useState<Set<string>>(new Set());
   const [matched, setMatched] = useState<Set<number>>(new Set());
@@ -55,6 +57,8 @@ export default function GameGrid({
   const lastProcessedQuestionsRef = useRef<string>("");
   const pusherRef = useRef<Pusher | null>(null);
   const channelRef = useRef<PresenceChannel | null>(null);
+  const resolveTimeoutRef = useRef<any>(null);
+  const resolveFunctionRef = useRef<(() => void) | null>(null);
 
   const key = process.env.NEXT_PUBLIC_PUSHER_KEY ?? "";
   const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER ?? "";
@@ -169,6 +173,18 @@ export default function GameGrid({
   }, [sessionId, playerName, key, cluster]);
 
   // 3. Flip Logic
+  const handleBoardClick = () => {
+    if (isResolving && resolveFunctionRef.current) {
+      if (resolveTimeoutRef.current) {
+        clearTimeout(resolveTimeoutRef.current);
+        resolveTimeoutRef.current = null;
+      }
+      const resolve = resolveFunctionRef.current;
+      resolveFunctionRef.current = null;
+      resolve();
+    }
+  };
+
   const handleCardFlip = useCallback(
     async (cardId: string) => {
       const qId = parseInt(cardId.split("q")[1]);
@@ -221,7 +237,7 @@ export default function GameGrid({
       return () => clearTimeout(resetTimeout);
     }
 
-    const timer = setTimeout(async () => {
+    const resolveCards = async () => {
       const isMatch = c1.questionId === c2.questionId;
       const ch = `presence-game-${sessionId}`;
 
@@ -284,9 +300,23 @@ export default function GameGrid({
 
       isResolvingRef.current = false;
       setIsResolving(false);
-    }, 1000);
+    };
 
-    return () => clearTimeout(timer);
+    resolveFunctionRef.current = resolveCards;
+    resolveTimeoutRef.current = setTimeout(() => {
+      if (resolveFunctionRef.current) {
+        resolveFunctionRef.current = null;
+        resolveCards();
+      }
+    }, 6000); // 6 seconds display time
+
+    return () => {
+      if (resolveTimeoutRef.current) {
+        clearTimeout(resolveTimeoutRef.current);
+        resolveTimeoutRef.current = null;
+      }
+      resolveFunctionRef.current = null;
+    };
   }, [flipped, cards, sessionId, playerName]);
 
   // 5. Grid Sizing
@@ -298,7 +328,7 @@ export default function GameGrid({
   }, [cards.length]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-8">
+    <div onClick={handleBoardClick} className="w-full max-w-7xl mx-auto px-4 py-8">
       <div className="mb-4 text-center flex flex-col items-center">
         <h3 className="text-lg font-semibold text-[var(--foreground)]">
           Matching Game
@@ -358,6 +388,7 @@ export default function GameGrid({
                 isFlipped={isCardFlipped}
                 onClick={() => handleCardFlip(card.id)}
                 disabled={isMatched || isResolving}
+                imageUrl={cardCoverUrl || undefined}
               />
             </div>
           );

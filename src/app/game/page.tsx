@@ -26,6 +26,7 @@ export default function GamePage() {
   const [questions, setQuestions] = useState<QuestionShape[] | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [cardCoverUrl, setCardCoverUrl] = useState<string | null>(null);
 
   // notes panel state
   const [showNotesPanel, setShowNotesPanel] = useState<boolean>(false);
@@ -67,6 +68,7 @@ export default function GamePage() {
   useEffect(() => {
     setQuestions(null);
     setQuestionsError(null);
+    setCardCoverUrl(null);
 
     if (typeof sessionId !== "number" || !Number.isFinite(sessionId)) return;
 
@@ -107,6 +109,9 @@ export default function GamePage() {
                 }))
               : [],
           );
+        }
+        if (!cancelled) {
+          setCardCoverUrl(json?.cardCoverUrl ?? null);
         }
       } catch (err: any) {
         if (ac.signal.aborted) return;
@@ -521,6 +526,7 @@ export default function GamePage() {
             sessionId={sessionId}
             playerName={playerName}
             isLoading={loadingQuestions}
+            cardCoverUrl={cardCoverUrl}
           />
         ) : (
           <div style={{ color: "var(--muted-foreground)" }}>
